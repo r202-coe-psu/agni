@@ -1,0 +1,4 @@
+#!/bin/bash
+
+AGNI_SETTINGS=$(pwd)/agni.cfg agni-data-aquisitor
+

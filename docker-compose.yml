@@ -1,0 +1,46 @@
+version: '3'
+services:
+    mongodb:
+        image: mongo
+        container_name: agni-mongodb
+        volumes:
+            - ../deployment/agni/mongodb/data/db:/data/db
+            - /etc/localtime:/etc/localtime:ro
+        restart: always
+        networks:
+            - default
+    web:
+        build: .
+        image: agni-image
+        container_name: agni-web
+        volumes:
+            - ../deployment:/deployment
+            - /etc/localtime:/etc/localtime:ro
+        ports:
+            - 9000:9000
+        links:
+            - mongodb
+        networks:
+            - default
+        restart: always
+        command: /app/scripts/agni-uwsgi.sh
+    acquisitor:
+        build: .
+        image: agni-image
+        container_name: agni-checker
+        volumes:
+            - ../deployment:/deployment
+            - /etc/localtime:/etc/localtime:ro
+        links:
+            - mongodb
+        networks:
+            - default
+        restart: always
+        environment:
+            - /app/agni-production.cfg
+        command: agni-data-acquisitor
+
+networks:
+    default:
+        driver: bridge
+      

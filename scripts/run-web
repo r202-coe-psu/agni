@@ -1,0 +1,3 @@
+#!/bin/sh
+
+FLASK_ENV=development AGNI_SETTINGS=$(pwd)/agni.cfg DEBUG=1  AUTHLIB_INSECURE_TRANSPORT=true agni-web -d $@

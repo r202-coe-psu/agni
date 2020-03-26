@@ -1,0 +1,17 @@
+{
+  "name": "agni",
+  "version": "0.0.1",
+  "description": "agni front-end",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "brython": "^3.8.8",
+    "jquery": "^3.4.1",
+    "leaflet": "^1.6.0",
+    "materialize-css": "^1.0.0"
+  },
+  "devDependencies": {}
+}

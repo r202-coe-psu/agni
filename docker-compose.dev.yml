@@ -1,0 +1,51 @@
+version: '3'
+services:
+    mongodb:
+        image: mongo
+        container_name: agni-mongodb
+        volumes:
+            - ../deployment/agni/mongodb/data/db:/data/db
+            - /etc/localtime:/etc/localtime:ro
+        # restart: always
+        networks:
+            - default
+    web:
+        build: .
+        image: agni-image
+        container_name: agni-web
+        volumes:
+            - .:/app
+            - ../deployment:/deployment
+            - /etc/localtime:/etc/localtime:ro
+        ports:
+            - 8080:9000
+        links:
+            - mongodb
+        networks:
+            - default
+        # restart: always
+        environment:
+            FLASK_ENV: production
+            SADHU_SETTINGS: /app/agni-development.cfg
+        command: /app/scripts/agni-uwsgi.sh
+    acquisitor:
+        build: .
+        image: agni-image
+        container_name: agni-checker
+        volumes:
+            - .:/app
+            - ../deployment:/deployment
+            - /etc/localtime:/etc/localtime:ro
+        links:
+            - mongodb
+        networks:
+            - default
+        # restart: always
+        environment:
+            SADHU_SETTINGS: /app/agni-development.cfg
+        command: agni-data-acquisitor
+
+networks:
+    default:
+        driver: bridge
+      

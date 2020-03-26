@@ -1,0 +1,5 @@
+MONGODB_DB = 'agnidb'
+SECRET_KEY = 'agni-secretkey' # change it when deploy web
+
+GOOGLE_CLIENT_ID = ''
+GOOGLE_CLIENT_SECRET = ''

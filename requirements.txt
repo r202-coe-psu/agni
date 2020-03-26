@@ -1,0 +1,6 @@
+flask
+requests
+flask-mongoengine
+flask-login
+flask-allows
+authlib
