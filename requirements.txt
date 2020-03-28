@@ -4,3 +4,4 @@ flask-mongoengine
 flask-login
 flask-allows
 authlib
+loginpass
