@@ -1,4 +1,14 @@
 {% extends "/base/default-page.html" %}
 
+{% block default_head %}
+{% endblock default_head %}
+
 {% block content %}
+<span id="dummy">
+is this content?
+</div>
+<script type="text/python">
+	from browser import document
+	document["dummy"] <= "exec'd"
+</script>
 {% endblock content %}
