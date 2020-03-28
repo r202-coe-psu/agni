@@ -1,14 +1,26 @@
 {% extends "/base/default-page.html" %}
 
 {% block default_head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/leaflet/dist/leaflet.css') }}">
+	<script src="{{ url_for('static', filename='node_modules/leaflet/dist/leaflet.js') }}"></script>
 {% endblock default_head %}
 
 {% block content %}
-<span id="dummy">
-is this content?
-</div>
+<div id="mapdisplay" style="height: 60vh"></div>
+
 <script type="text/python">
-	from browser import document
-	document["dummy"] <= "exec'd"
+	from browser import document, window
+	#document["dummy"] <= "exec'd"
+
+	leaflet = window.L
+	lmap = leaflet.map("mapdisplay", {
+		"preferCanvas": True
+	}).setView([13, 100.8], 6)
+
+	leaflet.tileLayer('https://{s}.tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png', {
+		"maxZoom": 18,
+		"attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+	}).addTo(lmap)
+
 </script>
 {% endblock content %}

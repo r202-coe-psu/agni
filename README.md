@@ -3,17 +3,20 @@
 # Setup
 
 At root directory:
+
 ```sh
 python setup.py develop
 ```
 
 at `agni/web/static`:
+
 ```sh
 cd agni/web/static
 npm install
 ```
 
 back at root directory again:
+
 ```sh
 ./scripts/run-web
 ```
@@ -22,7 +25,7 @@ back at root directory again:
 
 1. web app
 	- [x] get brython to run
-	- [ ] display plain leaflet map
+	- [x] display plain leaflet map
 	- [ ] display hotspot dots
 	- [ ] lazy load/draw hotspot marker (with ajax?)
 2. data store
