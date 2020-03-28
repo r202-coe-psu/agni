@@ -7,20 +7,47 @@
 
 {% block content %}
 <div id="mapdisplay" style="height: 60vh"></div>
+<button id="getpoint">get points</button>
 
 <script type="text/python">
-	from browser import document, window
-	#document["dummy"] <= "exec'd"
+	from browser import document, window, ajax, bind
+	import json
 
 	leaflet = window.L
-	lmap = leaflet.map("mapdisplay", {
-		"preferCanvas": True
-	}).setView([13, 100.8], 6)
+	renderer = leaflet.canvas({"padding": 0.5})
 
-	leaflet.tileLayer('https://{s}.tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png', {
+	marker_opts = {
+		"stroke": False,
+		"radius": 8,
+		"color": '#ff8833',
+		"renderer": renderer
+	}
+	
+
+	lmap = leaflet.map("mapdisplay",{"preferCanvas": True})
+
+	leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
 		"maxZoom": 18,
 		"attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 	}).addTo(lmap)
+
+	lmap.setView([13, 100.8], 6)
+
+	def hotspot_get(req):
+		hotspots = json.loads(req.text)
+		for spot in hotspots:
+			coords = (float(spot['latitude']), float(spot['longitude']))
+			leaflet.circleMarker(coords, marker_opts).addTo(lmap)
+
+	@bind("#getpoint", 'click')
+	def get_point(ev):
+		req = ajax.Ajax()
+		req.bind('complete', hotspot_get)
+
+		req.open('GET', '/hotspots', True)
+		req.send()
+	
+
 
 </script>
 {% endblock content %}
