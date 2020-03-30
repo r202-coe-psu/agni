@@ -14,17 +14,15 @@ def index():
 def get_hotspots():
     if not hotspots:
         # in practice we does query on db and return data
-        with open('/home/arch/agni/agni/web/static/hotspots.csv') as datafile:
+        with module.open_resource(
+                '../static/hotspots.csv', 
+                mode='rt') as datafile:
             data_reader = csv.DictReader(datafile)
             for line in data_reader:
+                line['latitude'] = float(line['latitude'])
+                line['longitude'] = float(line['longitude'])
                 hotspots.append(line)
-    trun_hotspots = hotspots[0:50]
     
-    reqdata = request.json
-    
-    # get length of total data
-    #if reqdata['mode'] == 'length':
-    #    return jsonify({"length":len(hotspots)})
-
-    return jsonify(trun_hotspots)
+    # return as json
+    return jsonify(hotspots)
 
