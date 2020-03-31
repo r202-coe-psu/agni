@@ -26,9 +26,14 @@ back at root directory again:
 1. web app
 	- [x] get brython to run
 	- [x] display plain leaflet map
-	- [ ] display hotspot dots
-	- [ ] lazy load/draw hotspot marker (with ajax?)
+	- [x] display hotspot dots
+	- [x] lazy load/draw hotspot marker (with ajax?)
+		- [ ] proper endpoints for ajax data retrieval
+		- still load all data at once. let's see how well this holds up
+	- [ ] display hotspot by date
+	- [ ] date picker slider -> time slice display
 2. data store
 	- [ ] write fetcher script
 	- [ ] set up influxdb
 	- [ ] reshape data to store
+	- [ ] make base testing database
