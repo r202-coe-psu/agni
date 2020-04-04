@@ -31,9 +31,9 @@ back at root directory again:
         - [ ] proper endpoints for ajax data retrieval
         - still load all data at once. let's see how well this holds up
     - [x] display hotspot by date
+        - [x] date picker slider -> time slice display
         - [ ] proper implementation
-    - [ ] date picker slider -> time slice display
-    - [ ] FASTER points loading
+    - [ ] performance for faster/smoother points display
 2. data store
     - [ ] write fetcher script
     - [ ] set up influxdb
