@@ -30,8 +30,10 @@ back at root directory again:
     - [x] lazy load/draw hotspot marker (with ajax?)
         - [ ] proper endpoints for ajax data retrieval
         - still load all data at once. let's see how well this holds up
-    - [ ] display hotspot by date
+    - [x] display hotspot by date
+        - [ ] proper implementation
     - [ ] date picker slider -> time slice display
+    - [ ] FASTER points loading
 2. data store
     - [ ] write fetcher script
     - [ ] set up influxdb
@@ -40,4 +42,7 @@ back at root directory again:
 3. From weekly meeting
     - [ ] check out geopy for geospatial filtering
     - [ ] filter points to contain Thailand and ~10km border around them
+        - [x] bounding box filtering
+        - [ ] shape filtering
+        - [ ] keep points near border (~10km)
     - [ ] write acquisitor in agni/acquisitor

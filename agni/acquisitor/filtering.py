@@ -1,5 +1,5 @@
 
-# Thailand bounding box from https://gist.github.com/graydon/11198540
+# Bounding box taken from https://gist.github.com/graydon/11198540
 TH_BBOX_EXACT = (97.3758964376, 5.69138418215, 105.589038527, 20.4178496363)
 TH_BBOX = (96.3758964376, 4.69138418215, 106.589038527, 21.4178496363)
 
