@@ -4,12 +4,13 @@ import csv
 import datetime
 import requests
 
-from agni.acquisitor import fetch_nrt
+from agni.acquisitor import fetch_nrt, filtering
 
 module = Blueprint('site', __name__)
 
 # fetched data cache
 hotspots = {}
+
 
 @module.route('/')
 def index():
@@ -41,9 +42,11 @@ def get_hotspots():
         res = fetch_nrt.request_nrt(target)
         if res.status_code == 200:
             hotspot_points = fetch_nrt.reshape_csv(res.text)
+            hotspot_points = filtering.filter_bbox(hotspot_points, 
+                                                   filtering.TH_BBOX)
             hotspots[target_julian] = hotspot_points
-            ret['data'] = hotspot_points
             ret['status'] = 'success'
+            ret['data'] = hotspot_points
         else:
             ret['status'] = 'failed'
     else:
