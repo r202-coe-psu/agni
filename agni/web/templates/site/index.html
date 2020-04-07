@@ -43,8 +43,14 @@
 
 	lmap = leaflet.map("mapdisplay",{"preferCanvas": True})
 	marker_layer = leaflet.LayerGroup.new()
+	marker_dated = {}
 
 	def query_ajax(target=None):
+		""" send request to server using ajax
+
+			Args: target (string): 
+				date to query, formatted to '%Y-%m-%d'
+		"""
 		data = {}
 		if target is not None:
 			data = { "date" : target }
@@ -54,12 +60,33 @@
 			"data": data,
 			"success": hotspot_get_jq
 		})
+	
+	def change_or_query(target=None):
+		""" check if target date is queried before query for new entry
+			if already queried, display them instead of query and redraw
+			otherwise, proceed to query as normal.
+
+			Args: target (datetime): 
+				specifying target date, defaults to today if none provided
+		"""
+		if target is None:
+			target = datetime.datetime.today()
+
+		target_jul = target.strftime('%Y%j')
+		target_str = target.strftime('%Y-%m-%d')
+
+		if target_jul in marker_dated:
+			marker_layer.clearLayers()
+			marker_layer.addLayer(marker_dated[target_jul])
+		else:
+			query_ajax(target_str)
 
 	# test date input, not final product
 	@bind('#hotspot-query', 'click')
 	def date_query(ev):
-		target = document['hotspot-date'].value
-		query_ajax(target)
+		target_val = document['hotspot-date'].value
+		target = datetime.datetime.strptime(target_val, '%Y-%m-%d')
+		change_or_query(target)
 
 	@bind('#hotspot-date-offset', 'change')
 	def date_query_slider(ev):
@@ -67,18 +94,27 @@
 		delta = datetime.timedelta(days=int(offset))
 		target = datetime.datetime.today() - delta
 		target_str = target.strftime('%Y-%m-%d')
+
 		document['hotspot-date'].value = target_str
-		query_ajax(target_str)
+
+		change_or_query(target)
 
 	def hotspot_get_jq(resp_data, text_status, jqxhr):
 		# resp_data.data is already json
 		if resp_data.status == 'success':
 			marker_layer.clearLayers()
 			document['hotspot-info'].text = ''
+
+			mkl = leaflet.LayerGroup.new()
+			date_jul = resp_data.date_jul
+			marker_dated[date_jul] = mkl
+
 			data = resp_data.data
 			for spot in data:
 				coords = (spot['latitude'], spot['longitude'])
-				leaflet.circleMarker(coords, marker_opts).addTo(marker_layer)
+				m = leaflet.circleMarker(coords, marker_opts)
+				m.addTo(mkl)
+				mkl.addTo(marker_layer)
 				marker_layer.addTo(lmap)
 		else:
 			document['hotspot-info'].text = 'Error retrieving hotspots'

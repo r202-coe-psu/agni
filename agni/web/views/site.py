@@ -36,6 +36,7 @@ def get_hotspots():
     ret = {}
     ret['status'] = None
     ret['data'] = []
+    ret['date_jul'] = target_julian
 
     hotspot_points = None
     if target_julian not in hotspots:
