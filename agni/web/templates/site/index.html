@@ -29,7 +29,7 @@
 </div>
 
 <script type="text/python">
-	from browser import document, window, ajax, bind
+	from browser import document, window, ajax, bind, timer
 	import datetime
 
 	leaflet = window.L
@@ -37,8 +37,8 @@
 
 	marker_opts = {
 		"stroke": False,
-		"radius": 6,
-		"color": '#ff8833',
+		"radius": 5,
+		"color": '#ff8833'
 	}
 
 	lmap = leaflet.map("mapdisplay",{"preferCanvas": True})
@@ -99,23 +99,65 @@
 
 		change_or_query(target)
 
+	def draw_all(data, date_jul):
+		if date_jul not in marker_dated:
+			mkl = leaflet.LayerGroup.new()
+			marker_dated[date_jul] = mkl
+		else:
+			mkl = marker_dated[date_jul]
+		
+		for spot in data:
+			coords = (spot['latitude'], spot['longitude'])
+			m = leaflet.circleMarker(coords, marker_opts)
+			m.addTo(mkl)
+		
+		mkl.addTo(marker_layer)
+		marker_layer.addTo(lmap)
+		document['hotspot-info'].text = ''
+		
+	def draw_chunks(data, date_jul):
+		todo = data.copy()
+		chunksize = 200
+		chunkdelay = 100
+
+		if date_jul not in marker_dated:
+			mkl = leaflet.LayerGroup.new()
+			marker_dated[date_jul] = mkl
+		else:
+			mkl = marker_dated[date_jul]
+		
+		def dotask():
+			items = todo[0:chunksize]
+
+			for spot in items:
+				coords = (spot['latitude'], spot['longitude'])
+				m = leaflet.circleMarker(coords, marker_opts)
+				m.addTo(mkl)
+			
+			del todo[0:chunksize]
+
+			if len(todo) > 0:
+				timer.set_timeout(dotask, chunkdelay)
+				load_percent = 1 - (len(todo) / len(data))
+				load_str = "Loading {:.1%} ...".format(load_percent)
+				document['hotspot-info'].text = load_str
+			else:
+				document['hotspot-info'].text = ''
+
+		timer.set_timeout(dotask, chunkdelay)
+		mkl.addTo(marker_layer)
+		marker_layer.addTo(lmap)
+
 	def hotspot_get_jq(resp_data, text_status, jqxhr):
 		# resp_data.data is already json
 		if resp_data.status == 'success':
 			marker_layer.clearLayers()
-			document['hotspot-info'].text = ''
-
-			mkl = leaflet.LayerGroup.new()
-			date_jul = resp_data.date_jul
-			marker_dated[date_jul] = mkl
+			document['hotspot-info'].text = 'Loading...'
 
 			data = resp_data.data
-			for spot in data:
-				coords = (spot['latitude'], spot['longitude'])
-				m = leaflet.circleMarker(coords, marker_opts)
-				m.addTo(mkl)
-				mkl.addTo(marker_layer)
-				marker_layer.addTo(lmap)
+			date_jul = resp_data.date_jul
+
+			draw_chunks(data, date_jul)
 		else:
 			document['hotspot-info'].text = 'Error retrieving hotspots'
 
