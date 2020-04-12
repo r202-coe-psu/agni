@@ -213,6 +213,7 @@
 			draw_chunks(data, date_jul)
 		else:
 			document['hotspot-info'].text = 'Error retrieving hotspots'
+			enable_input(True)
 
 		global fetch_in_progress
 		fetch_in_progress = False
