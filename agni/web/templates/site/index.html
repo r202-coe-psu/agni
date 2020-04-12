@@ -18,19 +18,8 @@
 </style>
 {% endblock additional_head %}
 
+{# barecontent block sits outside of the materialize css container #}
 {% block barecontent %}
-<!--
-	<div id="mapdisplay"></div>
--->
-<!-- for specific date query testing, not final product -->
-<!--
-<div>
-	<input type="date" id="hotspot-date">
-	<input type="range" id="hotspot-date-offset" min="0" max="60" value="0">
-	<button id="hotspot-query">Get</button>
-	<span id="hotspot-info"></span>
-</div>
--->
 <div class="row">
 	<!-- map -->
 	<div class="col s9">
@@ -75,6 +64,7 @@
 	dp_opts = {
 		"setDefaultDate": True,
 		"defaultDate": _jsdate_today,
+		"maxDate": _jsdate_today,
 		"format": "yyyy-mm-dd"
 	}
 
@@ -141,6 +131,9 @@
 		enable_input(False)
 		target_val = document['hotspot-date'].value
 		target = datetime.datetime.strptime(target_val, '%Y-%m-%d')
+		slider_offset = datetime.datetime.today() - target
+		slider_offset = max(0, 60-slider_offset.days)
+		document['hotspot-date-offset'].value = slider_offset
 		change_or_query(target)
 
 	@bind('#hotspot-date-offset', 'change')
