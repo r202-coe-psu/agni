@@ -33,16 +33,23 @@ back at root directory again:
     - [x] display hotspot by date
         - [x] date picker slider -> time slice display
         - [ ] proper implementation
-    - [ ] performance for faster/smoother points display
+    - [x] performance for faster/smoother points display
+        - [x] drawing points in chunk (browser didn't freeze)
+        - [ ] FASTER
+        - [ ] EVEN FASTERRR
 2. data store
     - [ ] write fetcher script
     - [ ] set up influxdb
     - [ ] reshape data to store
     - [ ] make base testing database
 3. From weekly meeting
-    - [ ] check out geopy for geospatial filtering
+    - [x] check out geopy for geospatial filtering
+        - didn't find relevent features though
     - [ ] filter points to contain Thailand and ~10km border around them
         - [x] bounding box filtering
         - [ ] shape filtering
         - [ ] keep points near border (~10km)
+            - right now is +- 1 degree in lat/lng from Thailand's bounding box
     - [ ] write acquisitor in agni/acquisitor
+        - [x] base functions
+        - [ ] standalone executable that can be called from outside
