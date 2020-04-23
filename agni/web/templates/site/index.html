@@ -1,4 +1,83 @@
 {% extends "/base/default-page.html" %}
 
+{% block default_head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/leaflet/dist/leaflet.css') }}">
+    <script src="{{ url_for('static', filename='node_modules/leaflet/dist/leaflet.js') }}"></script>
+{% endblock default_head %}
+
+{% block additional_head %}
+<style>
+.container {
+    margin: 0 auto;
+    max-width: 100vw;
+    width: 98% !important;
+}
+@media only screen and (min-width: 601px) {
+    .container {
+      width: 90%;
+    }
+}
+@media only screen and (min-width: 993px) {
+    .container {
+        width: 85%;
+    }
+}
+
+#mapdisplay {
+  height: 80vh;
+}
+#hotspot-query {
+  width: 100%;
+}
+.switch {
+  padding:5px 5px;
+  margin: 10px;
+}
+
+
+</style>
+{% endblock additional_head %}
+
+{# barecontent block sits outside of the materialize css container #}
 {% block content %}
+<div class="row" id="main-row">
+    
+    <!-- map -->
+    <div class="col s12 l10 " id="hotspot-display">
+        <div id="mapdisplay"></div>
+    </div>
+    <!-- map controls -->
+    <div class="col s12 l2 content" id="hotspot-controls">
+        <form action="#">
+            <div class="row input-field">
+                <input type="text" class="datepicker" id="hotspot-date" />
+                <label class="active" for="hotspot-date">Hotspot Date</label>
+            </div>
+            <p class="row range-field">
+                <input type="range" min="0" max="60" value="60" id="hotspot-date-offset" />
+            </p>
+            
+            <div class="row" id="hotspot-satellite" style="padding: 10px">
+                <label class="active" for="hotspot-satellite">Hotspot Data</label>
+                <div class="switch" >
+                    <label>
+                        MODIS
+                        <input type="checkbox" id="hotspot-modis" checked="checked">
+                        <span class="lever"></span>
+                    </label>
+                </div>
+                <div class="switch">
+                    <label>
+                        VIIRS
+                        <input type="checkbox" id="hotspot-viirs" checked="checked">
+                        <span class="lever"></span>
+                    </label>
+                </div>
+            </div>
+        </form>
+        <span id="hotspot-info"></span>
+    </div>
+
+</div>
+<script type="text/python" src="{{ url_for('static', filename='agni_map.bry.py') }}">
 {% endblock content %}
