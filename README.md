@@ -53,3 +53,6 @@ back at root directory again:
     - [ ] write acquisitor in agni/acquisitor
         - [x] base functions
         - [ ] standalone executable that can be called from outside
+    - [ ] FIRMS archive data migrator to DB, year range 2000-2020 (now)
+    - [ ] display data within time range (year-month resolution)
+      - [ ] display as heatmap -- plugins approved (as long as it's OSS)
