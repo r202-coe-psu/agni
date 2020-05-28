@@ -4,9 +4,38 @@ import csv
 import os
 import sys
 
+api_url = 'https://nrt4.modaps.eosdis.nasa.gov/api/v2/content/archives/FIRMS/'
 token = 'DB8ECCD2-41E6-11EA-8E17-6EBC4405026C'
 
-def reshape_csv(raw_csv):
+SRC_VIIRS = {
+    'name': 'viirs',
+    'url': 'viirs/SouthEast_Asia/',
+    'filename': 'VIIRS_I_SouthEast_Asia_VNP14IMGTDL_NRT_'
+}
+SRC_SUOMI = {
+    'name': 'suomi',
+    'url': 'suomi-npp-viirs-c2/SouthEast_Asia/', 
+    'filename': 'SUOMI_VIIRS_C2_SouthEast_Asia_VNP14IMGTDL_NRT_',
+}
+SRC_MODIS = {
+    'name': 'modis',
+    'url' : 'c6/SouthEast_Asia/' ,
+    'filename': 'MODIS_C6_SouthEast_Asia_MCD14DL_NRT_'
+}
+SRC_NOAA = {
+    'name': 'noaa',
+    'url': 'noaa-20-viirs-c2/SouthEast_Asia/' ,
+    'filename': 'J1_VIIRS_C2_SouthEast_Asia_VJ114IMGTDL_NRT_' 
+}
+
+def make_url(src, date):
+    filedate = date.strftime('%Y%j')
+    filename = "{}.txt".format(filedate)
+
+    return ''.join([api_url, src['url'], src['filename'], filename])
+
+
+def reshape_csv(raw_csv, satellite='viirs'):
     """preprocess NRT raw CSV to python dict
 
     Args:
@@ -21,8 +50,11 @@ def reshape_csv(raw_csv):
         # make floats
         line['latitude'] = float(line['latitude'])
         line['longitude'] = float(line['longitude'])
-        line['bright_ti4'] = float(line['bright_ti4'])
-        line['bright_ti5'] = float(line['bright_ti5'])
+        if satellite == "viirs" :
+            line['bright_ti4'] = float(line['bright_ti4'])
+            line['bright_ti5'] = float(line['bright_ti5'])
+        if satellite == "modis" :
+            line['bright_t31'] = float(line['bright_t31'])
         line['frp'] = float(line['frp'])
 
         # change acq_{date,time} to unix epoch MICROseconds
@@ -46,9 +78,9 @@ def reshape_csv(raw_csv):
 
         # reshape to tags
         # unsure about scan, track, version inclusion into reshaped data
-        daynight = None
-        morning = datetime.datetime(1970, 1, 1, 6, 0, 0)
-        evening = datetime.datetime(1970, 1, 1, 18, 0, 0)
+        #daynight = None
+        #morning = datetime.datetime(1970, 1, 1, 6, 0, 0)
+        #evening = datetime.datetime(1970, 1, 1, 18, 0, 0)
 
         #if 'daynight' in line:
         #    daynignt = line['daynignt']
@@ -93,7 +125,6 @@ def reshape_csv(raw_csv):
         #)
 
         #print(line_out_str, flush=True)
-
         # merge tags and fields into one entity
         #hotspot_point = hotspot_tags.copy()
         #hotspot_point.update(hotspot_tags)
@@ -104,22 +135,46 @@ def reshape_csv(raw_csv):
     # return hotspots
     return hotspots
 
-def request_nrt(date=None):
+def request_nrt(date=None, src=None):
     """Fetch NRT Data from NASA (SEA Region) by date
 
     Args:
         date (datetime.date): 
             target date for data fetching
             can go back at most 2 months from today.
+        src (one of SRC_{VIIRS,SUOMI,NOAA,MODIS}):
+            target satellite for request
+            defaults to VIIRS
     """
-
     if date is None:
         date = datetime.datetime.today()
+    if src is None:
+        src = SRC_VIIRS
 
     filedate = date.strftime('%Y%j')
 
-    file_name = 'VIIRS_I_SouthEast_Asia_VNP14IMGTDL_NRT_'+ filedate + '.txt'
-    url = 'https://nrt4.modaps.eosdis.nasa.gov/api/v2/content/archives/FIRMS/viirs/SouthEast_Asia/' + file_name
+    url = make_url(src, date)
     r = requests.get(url , headers={'Authorization':'Bearer '+ token })
     return r
+
+def request_viirs_nrt(date=None):
+    return request_nrt(date, SRC_VIIRS)
+
+def request_modis_nrt(date=None):
+    return request_nrt(date, SRC_MODIS)
+
+def request_suomi_nrt(date=None):
+    return request_nrt(date, SRC_SUOMI)
+
+def request_noaa_nrt(date=None):
+    return request_nrt(date, SRC_NOAA)
+
+def get_nrt_data(date=None, src=SRC_VIIRS):
+    req = request_nrt(date, src)
+
+    req.raise_for_status()
+    hotspots = {}
+    hotspots = reshape_csv(req.text, src['name'])
+
+    return hotspots
 

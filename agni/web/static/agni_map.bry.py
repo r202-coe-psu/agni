@@ -75,13 +75,13 @@ def change_or_query(target=None):
 def enable_input(state=True):
     document['hotspot-date-offset'].disabled = not state
     document['hotspot-date'].disabled = not state
-    if state:
-        document['hotspot-query'].classList.remove('disabled')
-    else:
-        document['hotspot-query'].classList.add('disabled')
+    #if state:
+    #    document['hotspot-query'].classList.remove('disabled')
+    #else:
+    #    document['hotspot-query'].classList.add('disabled')
 
 # test date input, not final product
-@bind('#hotspot-query', 'click')
+#@bind('#hotspot-query', 'click')
 def date_query(ev):
     enable_input(False)
     target_val = document['hotspot-date'].value
