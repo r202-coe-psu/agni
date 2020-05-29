@@ -69,50 +69,42 @@ def change_or_query(target=None):
         marker_layer.addLayer(marker_dated[target_jul])
         enable_input(True)
     else:
+        enable_input(False)
         fetch_in_progress = True
         query_ajax(target_str)
 
 def enable_input(state=True):
     document['hotspot-date-offset'].disabled = not state
     document['hotspot-date'].disabled = not state
-    #if state:
-    #    document['hotspot-query'].classList.remove('disabled')
-    #else:
-    #    document['hotspot-query'].classList.add('disabled')
 
-# test date input, not final product
-#@bind('#hotspot-query', 'click')
-def date_query(ev):
-    enable_input(False)
-    target_val = document['hotspot-date'].value
-    target = datetime.datetime.strptime(target_val, '%Y-%m-%d')
-    slider_offset = datetime.datetime.today() - target
-    slider_offset = max(0, 60-slider_offset.days)
-    document['hotspot-date-offset'].value = slider_offset
-    change_or_query(target)
+def date_from_offset(offset, maxdelta=60):
+    # maxdelta of 60 since live NRT data is stored 
+    # for at most 2 months (60 days)
+    today = datetime.datetime.today()
+    delta = datetime.timedelta(days=(maxdelta-offset))
 
-@bind('#hotspot-date', 'change')
-def datepicker_query(ev):
-    date_query(ev)
+    return today-delta
 
-@bind('#hotspot-date-offset', 'input')
-def sync_date(ev):
-    offset = document['hotspot-date-offset'].value
-    offset = 60 - int(offset)
-    delta = datetime.timedelta(days=offset)
-    target = datetime.datetime.today() - delta
-    target_str = target.strftime('%Y-%m-%d')
+@bind('#map-options', 'change')
+def map_options_changed(ev):
+    today = datetime.datetime.today()
+    date_cal_str = document['hotspot-date'].value
+    date_cal = datetime.datetime.strptime(date_cal_str, '%Y-%m-%d')
 
-    document['hotspot-date'].value = target_str
+    slider_val = int(document['hotspot-date-offset'].value)
+    date_slider = date_from_offset(slider_val)
 
-@bind('#hotspot-date-offset', 'change')
-def date_query_slider(ev):
-    enable_input(False)
-    offset = document['hotspot-date-offset'].value
-    offset = 60 - int(offset)
-    delta = datetime.timedelta(days=offset)
-    target = datetime.datetime.today() - delta
-    target_str = target.strftime('%Y-%m-%d')
+    change_src = ev.target.id
+    if change_src == 'hotspot-date-offset':
+        # changes from slider
+        document['hotspot-date'].value = date_slider.strftime('%Y-%m-%d')
+        target = date_slider
+
+    elif change_src == 'hotspot-date':
+        # changes from date picker
+        new_offset = today - date_cal
+        document['hotspot-date-offset'].value = max(0, 60-new_offset.days)
+        target = date_cal
 
     change_or_query(target)
 
@@ -158,16 +150,24 @@ def draw_all(data, date_jul):
     document['hotspot-info'].text = ''
 
 def draw_chunks(data, date_jul):
+    """ draw NRT data points onto a marker layer
+        batch processed to avoid locking up browsers
+
+        Args:
+            data (list of dicts):
+                list of NRT data points as dicts
+            date_jul (str):
+                date of data points
+
+        Return:
+            mkl (leaflet.LayerGroup):
+                a LayerGroup containing markers
+    """
     todo = data.copy()
     chunksize = 200
     chunkdelay = 100
 
-    if date_jul not in marker_dated:
-        mkl = leaflet.LayerGroup.new()
-        marker_dated[date_jul] = mkl
-    else:
-        mkl = marker_dated[date_jul]
-        enable_input(True)
+    mkl = leaflet.LayerGroup.new()
 
     def dotask():
         items = todo[0:chunksize]
@@ -188,8 +188,7 @@ def draw_chunks(data, date_jul):
             document['hotspot-info'].text = ''
 
     timer.set_timeout(dotask, chunkdelay)
-    mkl.addTo(marker_layer)
-    marker_layer.addTo(lmap)
+    return mkl
 
 def hotspot_get_jq(resp_data, text_status, jqxhr):
     # resp_data.data is already json
@@ -200,7 +199,15 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
         data = resp_data.data
         date_jul = resp_data.date_jul
 
-        draw_chunks(data, date_jul)
+        if date_jul not in marker_dated:
+            _mkl = draw_chunks(data, date_jul)
+            marker_dated[date_jul] = _mkl
+        else:
+            _mkl = marker_dated[date_jul]
+
+        _mkl.addTo(marker_layer)
+        marker_layer.addTo(lmap)
+        enable_input(True)
     else:
         document['hotspot-info'].text = 'Error retrieving hotspots'
         enable_input(True)
