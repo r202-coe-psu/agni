@@ -3,6 +3,10 @@
 {% block default_head %}
     <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/leaflet/dist/leaflet.css') }}">
     <script src="{{ url_for('static', filename='node_modules/leaflet/dist/leaflet.js') }}"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/materialize-css/extras/noUiSlider/nouislider.css') }}">
+    <script src="{{ url_for('static', filename='node_modules/materialize-css/extras/noUiSlider/nouislider.js') }}"></script>
+
 {% endblock default_head %}
 
 {% block additional_head %}
@@ -46,9 +50,10 @@
                 <input type="text" class="datepicker" id="hotspot-date" />
                 <label class="active" for="hotspot-date">Hotspot Date</label>
             </div>
-                <p class="row range-field">
-                    <input type="range" min="0" max="60" value="60" id="hotspot-date-offset" />
-                </p>
+            <p class="row range-field">
+                <input type="range" min="0" max="60" value="60" id="hotspot-date-offset" />
+            </p>
+            <div class="row" id="nu-slider"></div>
             <!-- <div class="row">
                 <a class="btn" id="hotspot-query">Get Data</a>
             </div> -->

@@ -112,7 +112,7 @@ def marker_popup(e):
     """ generate contents for clicked marker """
     e_dict = e.to_dict()
     coords = e.getLatLng().to_dict()
-    feature_str = [ "{}: {}".format(k, v)
+    feature_str = [ "<b>{}</b>: {}".format(k, v)
         for k, v in e.feature.items() 
     ]
     return '<br />'.join(feature_str)
@@ -135,23 +135,19 @@ def draw_one_marker(spot, ext_opts=marker_opts):
     return m
 
 def draw_all(data, date_jul):
-    if date_jul not in marker_dated:
-        mkl = leaflet.LayerGroup.new()
-        marker_dated[date_jul] = mkl
-    else:
-        mkl = marker_dated[date_jul]
+    mkl = leaflet.LayerGroup.new()
 
     for spot in data:
         m = draw_one_marker(spot)
         m.addTo(mkl)
 
-    mkl.addTo(marker_layer)
-    marker_layer.addTo(lmap)
+    return mkl
     document['hotspot-info'].text = ''
 
 def draw_chunks(data, date_jul):
     """ draw NRT data points onto a marker layer
         batch processed to avoid locking up browsers
+        tuned by adjusting chunksize and chunkdelay(ms)
 
         Args:
             data (list of dicts):
@@ -184,7 +180,6 @@ def draw_chunks(data, date_jul):
             load_str = "Loading {:.1%} ...".format(load_percent)
             document['hotspot-info'].text = load_str
         else:
-            enable_input(True)
             document['hotspot-info'].text = ''
 
     timer.set_timeout(dotask, chunkdelay)
@@ -207,20 +202,15 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
 
         _mkl.addTo(marker_layer)
         marker_layer.addTo(lmap)
-        enable_input(True)
     else:
         document['hotspot-info'].text = 'Error retrieving hotspots'
-        enable_input(True)
+
+    enable_input(True)
 
     global fetch_in_progress
     fetch_in_progress = False
 
-# jQuery is somehow way faster
-# get point for today
-def get_point_jq(ev):
-    query_ajax()
-
-lmap.on('load', get_point_jq)
+lmap.on('load', lambda e: query_ajax())
 
 leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
