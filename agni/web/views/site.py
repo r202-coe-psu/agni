@@ -22,6 +22,7 @@ def get_hotspots():
 
     today = datetime.datetime.today()
     requested_date = queryargs.get('date', type=str)
+    lineprot = queryargs.get('line', type=str)
 
     target = today
     if requested_date is not None:
@@ -63,6 +64,17 @@ def get_hotspots():
     if count is not None:
         trun_hotspots = ret['data'][offset:offset+count]
         ret['data'] = trun_hotspots
+
+    # for testing
+    if lineprot == 'yes':
+        line_nrts = []
+        for nrt in ret['data']:
+            line_nrt = fetch_nrt.nrt_to_lineprot(
+                nrt, 'hotspots', 'acq_time',
+                ['daynight', 'satellite', 'confidence'],
+            )
+            line_nrts.append(line_nrt)
+        ret['line_protocol'] = line_nrts
 
     # return as json
     return jsonify(ret)
