@@ -2,7 +2,399 @@ from browser import document, window, ajax, bind, timer
 import javascript
 import datetime
 
+geojson = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.20207977294922,
+          10.510429389671458
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.20289516448975,
+          10.510429389671458
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.20248746871947,
+          10.50966987336357
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.20283079147337,
+          10.50663178945537
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.20424699783325,
+          10.50665288736332
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.20559883117676,
+          10.508931452940201
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.2049765586853,
+          10.513678410567458
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.19776678085327,
+          10.51118890411143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.1984748840332,
+          10.505745676020679
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.22207832336426,
+          10.508404008699829
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.21323776245117,
+          10.524437910925283
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.21512603759766,
+          10.52536616396074
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.19718742370605,
+          10.53093562348841
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.20843124389647,
+          10.541989858625374
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.17418479919434,
+          10.552368664710642
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.1611385345459,
+          10.528319677756077
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.18251037597656,
+          10.50899474618852
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.18259620666504,
+          10.508319617537785
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.16688919067383,
+          10.525788096235015
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.16448593139648,
+          10.52469107112114
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.19375419616699,
+          10.540639744304858
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.19057846069336,
+          10.54587140431546
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.16088104248047,
+          10.540977273439985
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.16096687316895,
+          10.539627154679605
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.1640567779541,
+          10.540724126623333
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.16302680969237,
+          10.541989858625374
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.16337013244627,
+          10.53979591984837
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.1629409790039,
+          10.540133449908438
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.19306755065918,
+          10.540724126623333
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.2146110534668,
+          10.524606684412278
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.20963287353516,
+          10.540724126623333
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.19933319091797,
+          10.531104393418453
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.19838905334473,
+          10.53262331862995
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.19864654541016,
+          10.530007387221294
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.20474052429199,
+          10.521484359953345
+        ]
+      }
+    }
+  ]
+}
+
 leaflet = window.L
+turf = window.turf
 jq = window.jQuery
 mcss = window.M
 
@@ -266,14 +658,27 @@ def get_point_jq(ev):
 
 lmap.on('load', get_point_jq)
 
-leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
+base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
     "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(lmap)
+})
+leaflet.control.layers({"Base": base },{"Modis":modis_layer,"Viirs":viirs_layer}).addTo(lmap)
+lmap.setView([13, 100.8], 6)
 
 lmap.setView([13, 100.8], 6)
 
-
+def cluster_test(cluster,clusterValue,currentIndex): 
+    ch = turf.convex(cluster)
+    ch.properties.name_lat = clusterValue
+    leaflet.geoJSON(ch).addTo(lmap)
+    
+clustered = turf.clustersDbscan(geojson,0.4)
+turf.clusterEach(
+    clustered,
+    "cluster",
+    cluster_test
+)
+leaflet.geoJSON(clustered).addTo(lmap)
 # for browser console debug only
 window.lmap = lmap
 window.marker_layer = marker_layer

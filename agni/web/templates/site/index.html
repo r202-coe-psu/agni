@@ -3,6 +3,8 @@
 {% block default_head %}
     <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/leaflet/dist/leaflet.css') }}">
     <script src="{{ url_for('static', filename='node_modules/leaflet/dist/leaflet.js') }}"></script>
+    <script src="{{ url_for('static', filename='node_modules/@turf/turf/turf.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='node_modules/@turf/turf/turf.js') }}"></script>
 {% endblock default_head %}
 
 {% block additional_head %}
