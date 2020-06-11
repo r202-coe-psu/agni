@@ -5,6 +5,7 @@ import datetime
 import requests
 
 from agni.acquisitor import fetch_nrt, filtering
+from agni.util import nrtconv
 
 module = Blueprint('site', __name__)
 
@@ -94,4 +95,34 @@ def get_all_hotspots():
     # return as json
     return jsonify(ret)
 
+fetch_hotspots = {
+    'viirs': get_viirs_hotspots,
+    'modis': get_modis_hotspots
+}
+
+@module.route('/hotspots.geojson')
+def get_geojson_hotspots():
+    queryargs = request.args
+
+    requested_date = queryargs.get('date', type=str)
+    requested_source = queryargs.get('source', type=str)
+
+    today = datetime.datetime.today()
+    target = today
+    if requested_date is not None:
+        try:
+            target = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
+        except ValueError:
+            target = today
+    target_julian = target.strftime('%Y%j')
+    # in practice, we does query on db and return data
+    # probably
+
+    sat_src = 'viirs'
+    if requested_source is not None:
+        sat_src = requested_source
+
+    sat_points = fetch_hotspots[sat_src](target,target_julian)
+    sat_geojson = nrtconv.to_geojson(sat_points['data'])
+    return jsonify(sat_geojson)
 
