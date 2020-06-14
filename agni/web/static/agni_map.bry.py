@@ -20,6 +20,12 @@ modis_marker_opts = {
     "color": 'orange'
 }
 
+noise_marker_opts = {
+    "stroke": False,
+    "radius": 5,
+    "color": 'orange'
+}
+
 # set up materialize css stuff
 dp_opts = {
     "setDefaultDate": True,
@@ -40,6 +46,10 @@ modis_layer = leaflet.LayerGroup.new()
 
 viirs_marker_dated = {}
 modis_marker_dated = {}
+
+turf_dated = {}
+clustered_layer = leaflet.LayerGroup.new()
+raw_layer = leaflet.LayerGroup.new()
 
 viirs_mkl = {}
 modis_mkl = {}
@@ -85,46 +95,70 @@ def change_or_query(target=None):
     target_jul = target.strftime('%Y%j')
     target_str = target.strftime('%Y-%m-%d')
 
-    if target_jul in marker_dated:
-        marker_layer.clearLayers()
-        marker_layer.addLayer(marker_dated[target_jul])
+    #if target_jul in marker_dated:
+    #    marker_layer.clearLayers()
+    #    marker_layer.addLayer(marker_dated[target_jul])
+    #    enable_input(True)
+    #else:
+    #    fetch_in_progress = True
+    #    query_ajax_cluster(target_str)
+
+    raw_layer.clearLayers()
+    clustered_layer.clearLayers()
+
+    try:
+        turf_dated[target_jul, 'raw'].addTo(raw_layer)
+        turf_dated[target_jul, 'turf'].addTo(clustered_layer)
         enable_input(True)
-    else:
+    except KeyError:
         fetch_in_progress = True
         query_ajax_cluster(target_str)
-
+    
 def enable_input(state=True):
     document['hotspot-date-offset'].disabled = not state
     document['hotspot-date'].disabled = not state
 
 # turf test
 # only works with VIIRS data point
+
 def cluster_data(resp, status, jqxhr):
     marker_layer.clearLayers()
     turf_layer = leaflet.LayerGroup.new()
     turf_layer.clearLayers()
+    
     geojson = resp
-    def cluster_test(cluster,clusterValue,currentIndex): 
-        ch = turf.centroid(cluster)
+    # draw cluster convex and centroid to separate layer
+    def process_cluster(cluster,clusterValue,currentIndex): 
         count = len(cluster.features)
-        #ch.properties.name_lat = clusterValue
+        ch = turf.centroid(cluster)
         ctr = leaflet.geoJSON(ch)
-        ctr.bindPopup("<b>cluster count</b>: {}".format(count))
+        ctr_info = {
+            "cluster": clusterValue,
+            "cluster count": count,
+        }
+        ctr.bindPopup(
+            "<br />".join([
+                "<b>{}</b>: {}".format(k, v)
+                for k, v in ctr_info.items()
+            ])
+        )
         ctr.addTo(turf_layer)
 
         cnv = turf.convex(cluster)
         leaflet.geoJSON(cnv).addTo(turf_layer)
 
     # clustering radius in km
-    cluster_radius = 5
-    clustered = turf.clustersDbscan(geojson,cluster_radius)
-    turf.clusterEach(clustered, "cluster",cluster_test)
+    CLUSTER_RADIUS = 3.75
+    clustered = turf.clustersDbscan(geojson, CLUSTER_RADIUS)
+    turf.clusterEach(clustered, "cluster", process_cluster)
 
     def turf_markers(feature, latlng):
-        return leaflet.circleMarker(latlng, viirs_marker_opts)
+        if feature.properties.dbscan == 'core':
+            return leaflet.circleMarker(latlng, viirs_marker_opts)
+        else:
+            return leaflet.circleMarker(latlng, noise_marker_opts)
 
     def turf_features(feature, layer):
-        #features_dict = feature.to_dict()
         features_dict = feature.properties.to_dict()
         features_str = [
             "<b>{}</b>: {}".format(k, v)
@@ -135,19 +169,23 @@ def cluster_data(resp, status, jqxhr):
     def turf_filter(feature):
         return feature.properties.dbscan == 'noise'
 
+    # draw raw points
+    raw_points = leaflet.LayerGroup.new()
     leaflet.geoJSON(clustered, {
         'pointToLayer': turf_markers,
         'onEachFeature': turf_features,
         #'filter': turf_filter
-    }).addTo(turf_layer)
+    }).addTo(raw_points)
 
     thedate = datetime.datetime.strptime(
         document['hotspot-date'].value, '%Y-%m-%d'
     )
     date_str = thedate.strftime('%Y%j')
-    marker_dated[date_str] = turf_layer 
-    turf_layer.addTo(marker_layer)
-    marker_layer.addTo(lmap)
+    turf_dated[date_str, 'raw'] = raw_points
+    turf_dated[date_str, 'turf'] = turf_layer
+
+    raw_points.addTo(raw_layer)
+    turf_layer.addTo(clustered_layer)
 
     global fetch_in_progress
     fetch_in_progress = False
@@ -161,8 +199,7 @@ def query_ajax_cluster(target=None):
     """
     data = {}
     if target is not None:
-        data = { "date" : target
-        }
+        data = {"date": target}
 
     jq.ajax('/hotspots.geojson', {
         "dataType": "json",
@@ -341,8 +378,15 @@ base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
     "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 })
-leaflet.control.layers({"Base": base.addTo(lmap) },{"Modis":modis_layer,"Viirs":viirs_layer}).addTo(lmap)
+leaflet.control.layers({
+        "Base": base.addTo(lmap)
+    },{
+        "Raw": raw_layer.addTo(lmap),
+        "Clustered": clustered_layer.addTo(lmap)
+    }
+).addTo(lmap)
 lmap.setView([13, 100.8], 6)
+leaflet.control.scale({"imperial": False}).addTo(lmap)
 
 # for browser console debug only
 window.lmap = lmap
