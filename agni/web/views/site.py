@@ -66,7 +66,7 @@ def index():
 @module.route('/hotspots')
 def get_all_hotspots():
     queryargs = request.args
-    
+
     requested_date = queryargs.get('date', type=str)
     today = datetime.datetime.today()
     target = today
@@ -83,15 +83,14 @@ def get_all_hotspots():
     ret['modis'] = get_modis_hotspots(target,target_julian)
     ret['viirs'] = get_viirs_hotspots(target,target_julian)
     ret['status'] = 'success'
+    ret['influx'] = {}
 
-    # for chunked requests support
-    # might get removed later
-    #count = queryargs.get('count', type=int)
-    #offset = queryargs.get('offset', default=0, type=int)
+    as_influx_point = queryargs.get('influx', type=str)
+    if as_influx_point == 'true':
+        mapfunc = lambda n: nrtconv.to_influx_point(n, skip=['acq_date'])
+        ret['influx']['modis'] = list(map(mapfunc, ret['modis']['data']))
+        ret['influx']['viirs'] = list(map(mapfunc, ret['viirs']['data']))
 
-    #if count is not None:
-    #    trun_hotspots = ret['data'][offset:offset+count]
-    #    ret['data'] = trun_hotspots
     # return as json
     return jsonify(ret)
 
