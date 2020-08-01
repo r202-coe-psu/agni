@@ -3,6 +3,7 @@ from flask import jsonify
 import csv
 import datetime
 import requests
+import influxdb_client as ifc
 
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv
@@ -13,6 +14,13 @@ module = Blueprint('site', __name__)
 modis_hotspots = {}
 viirs_hotspots = {}
 
+INFLUX_UNAME = 'agnitest'
+INFLUX_PASSWD = 'agnitest'
+INFLUX_BUCKET = 'hotspots'
+INFLUX_URL = 'http://localhost:8086'
+
+ifxclient = ifc.InfluxDBClient(url=INFLUX_URL, token='-')
+ifx_query = ifxclient.query_api()
 
 def get_modis_hotspots(target,target_julian):
     ret = {}
@@ -83,13 +91,6 @@ def get_all_hotspots():
     ret['modis'] = get_modis_hotspots(target,target_julian)
     ret['viirs'] = get_viirs_hotspots(target,target_julian)
     ret['status'] = 'success'
-    ret['influx'] = {}
-
-    as_influx_point = queryargs.get('influx', type=str)
-    if as_influx_point == 'true':
-        mapfunc = lambda n: nrtconv.to_influx_point(n, skip=['acq_date'])
-        ret['influx']['modis'] = list(map(mapfunc, ret['modis']['data']))
-        ret['influx']['viirs'] = list(map(mapfunc, ret['viirs']['data']))
 
     # return as json
     return jsonify(ret)
@@ -125,3 +126,43 @@ def get_geojson_hotspots():
     sat_geojson = nrtconv.to_geojson(sat_points['data'])
     return jsonify(sat_geojson)
 
+@module.route('/ifdb')
+def testquery():
+    queryargs = request.args
+
+    requested_date = queryargs.get('date', type=str)
+    requested_source = queryargs.get('source', type=str)
+
+    today = datetime.datetime.today()
+    target = today
+    if requested_date is not None:
+        try:
+            target = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
+        except ValueError:
+            target = today
+    target_julian = target.strftime('%Y%j')
+
+    # flux query
+    # this is a goddamn trainqreck holy shit
+    flux_query = """ from(bucket: "hotspots") 
+        |> range(start: 2020-04-01T00:00:00Z, stop: 2020-04-02T00:00:00Z)
+        |> filter(fn: (r) =>
+            r._field != "version" and
+            r._field != "type"
+        )
+        |> pivot(
+            rowKey:["_time"],
+            columnKey: ["_field"],
+            valueColumn: "_value"
+        )
+        |> drop(columns: ["satellite", "_start", "_stop"])
+    """
+    flux_res = ifx_query.query_raw(
+        flux_query.format(
+            bucket=INFLUX_BUCKET, 
+            start='2020-04-01T00:00:00Z',
+            stop='2020-04-02T00:00:00Z'
+        )
+    )
+    reslist = [ s.decode('utf-8') for s in flux_res ]
+    return str(reslist)
