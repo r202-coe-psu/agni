@@ -10,12 +10,14 @@ __all__ = [
 
 
 from flask_mongoengine import MongoEngine
+from flask_influxdb import InfluxDB
 
 db = MongoEngine()
-
+influxdb = InfluxDB()
 
 def init_db(app):
     db.init_app(app)
+    influxdb.init_app(app=app)
 
 
 def init_mongoengine(settings):

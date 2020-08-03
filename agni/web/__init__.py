@@ -3,21 +3,21 @@ import optparse
 
 from flask import Flask
 
+
 from .. import models
 from . import views
 from . import acl
 from . import oauth2
-
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object('agni.default_settings')
     app.config.from_envvar('AGNI_SETTINGS', silent=True)
 
-    # models.init_db(app)
+    models.init_db(app)
     acl.init_acl(app)
     oauth2.init_oauth(app)
-    
+
     views.register_blueprint(app)
 
     return app

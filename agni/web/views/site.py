@@ -1,5 +1,7 @@
 from flask import Blueprint, render_template, current_app, url_for, request
 from flask import jsonify
+
+import json
 import csv
 import datetime
 import requests
@@ -7,6 +9,7 @@ import influxdb_client as ifc
 
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv
+from agni.models import influxdb
 
 module = Blueprint('site', __name__)
 
@@ -21,6 +24,8 @@ INFLUX_URL = 'http://localhost:8086'
 
 ifxclient = ifc.InfluxDBClient(url=INFLUX_URL, token='-')
 ifx_query = ifxclient.query_api()
+
+TODAY = datetime.datetime.today()
 
 def get_modis_hotspots(target,target_julian):
     ret = {}
@@ -126,24 +131,25 @@ def get_geojson_hotspots():
     sat_geojson = nrtconv.to_geojson(sat_points['data'])
     return jsonify(sat_geojson)
 
-@module.route('/ifdb')
-def testquery():
+@module.route('/ifdb', defaults={'date': None})
+@module.route('/ifdb/<date>')
+def testquery(date):
     queryargs = request.args
 
-    requested_date = queryargs.get('date', type=str)
+    requested_date = date #queryargs.get('date', type=str)
     requested_source = queryargs.get('source', type=str)
+    useinfluxql = queryargs.get('influxql', type=int)
 
-    today = datetime.datetime.today()
-    target = today
+    target = TODAY
     if requested_date is not None:
         try:
             target = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
         except ValueError:
-            target = today
+            target = TODAY
     target_julian = target.strftime('%Y%j')
 
     # flux query
-    # this is a goddamn trainqreck holy shit
+    # this is a goddamn trainwreck holy shit
     flux_query = """ from(bucket: "hotspots") 
         |> range(start: 2020-04-01T00:00:00Z, stop: 2020-04-02T00:00:00Z)
         |> filter(fn: (r) =>
@@ -157,12 +163,31 @@ def testquery():
         )
         |> drop(columns: ["satellite", "_start", "_stop"])
     """
-    flux_res = ifx_query.query_raw(
-        flux_query.format(
-            bucket=INFLUX_BUCKET, 
-            start='2020-04-01T00:00:00Z',
-            stop='2020-04-02T00:00:00Z'
+    if useinfluxql == 1:
+        dateplus = target + datetime.timedelta(days=1)
+        params = {
+            "date": target.strftime("%Y-%m-%d"),
+            "dateplus": dateplus.strftime('%Y-%m-%d')
+        }
+        # OH MAN I AM NOT GOOD WITH PARAMS PLZ TO HELP
+        influxql_str = """
+            select * from "hotspots"
+            where "time" >= '{date}'
+                and time < '{dateplus}';
+        """.format(**params)
+        result = influxdb.query(influxql_str,
+                                epoch='u',
+                                database=INFLUX_BUCKET)
+        # I (ALMOST) GOT THE ORIGINAL TABLE BACK YAY
+        return jsonify(list(result.get_points()))
+    else:
+        flux_res = ifx_query.query_raw(
+            flux_query.format(
+                bucket=INFLUX_BUCKET, 
+                start='2020-04-01T00:00:00Z',
+                stop='2020-04-02T00:00:00Z'
+            )
         )
-    )
-    reslist = [ s.decode('utf-8') for s in flux_res ]
-    return str(reslist)
+        reslist = [ s.decode('utf-8') for s in flux_res ]
+        return str(reslist)
+    return 'nada'
