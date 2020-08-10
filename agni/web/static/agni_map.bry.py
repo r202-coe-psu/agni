@@ -148,7 +148,7 @@ def cluster_data(resp, status, jqxhr):
         leaflet.geoJSON(cnv).addTo(turf_layer)
 
     # clustering radius in km
-    CLUSTER_RADIUS = 3.75
+    CLUSTER_RADIUS = 0.750
     clustered = turf.clustersDbscan(geojson, CLUSTER_RADIUS)
     turf.clusterEach(clustered, "cluster", process_cluster)
 
@@ -192,6 +192,18 @@ def cluster_data(resp, status, jqxhr):
 
     enable_input(True)
 
+def query_error(jqxhr, errortype, text):
+    document['hotspot-info'].text = "E{}: {}".format(jqxhr.status, text)
+    enable_input(True)
+
+def query_succes(resp, status, jqxhr):
+    if jqxhr.status == 200:
+        document['hotspot-info'].text = ''
+        cluster_data(resp, status, jqxhr)
+    elif jqxhr.status == 204:
+        document['hotspot-info'].text = 'No data'
+        enable_input(True)
+
 def query_ajax_cluster(target=None):
     """ send request to server using ajax
         Args: target (string): 
@@ -204,7 +216,8 @@ def query_ajax_cluster(target=None):
     jq.ajax('/hotspots.geojson', {
         "dataType": "json",
         "data": data,
-        "success": cluster_data
+        "success": query_succes,
+        "error": query_error
     })
 
 # /turf test
@@ -378,9 +391,11 @@ base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
     "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 })
-leaflet.control.layers({
+leaflet.control.layers(
+    {
         "Base": base.addTo(lmap)
-    },{
+    },
+    {
         "Raw": raw_layer.addTo(lmap),
         "Clustered": clustered_layer.addTo(lmap)
     }

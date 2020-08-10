@@ -1,4 +1,5 @@
-
+import shapely
+import shapely.geometry
 # Bounding box taken from https://gist.github.com/graydon/11198540
 # format: (lon_lo, lat_lo, lon_hi, lat_hi)
 TH_BBOX_EXACT = (97.3758964376, 5.69138418215, 105.589038527, 20.4178496363)

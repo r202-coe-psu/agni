@@ -9,7 +9,7 @@ def make_geojson_point(nrt):
     lon = nrt['longitude']
 
     props = {k: v for k, v in nrt.items() if k not in PRUNE_PROPS}
-    props['acq_time_us'] = nrt['acq_time']
+    #props['acq_time_us'] = nrt['acq_time']
 
     ret = {
         'type': 'Feature',

@@ -5,7 +5,6 @@ import json
 import csv
 import datetime
 import requests
-import influxdb_client as ifc
 
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv
@@ -21,9 +20,6 @@ INFLUX_UNAME = 'agnitest'
 INFLUX_PASSWD = 'agnitest'
 INFLUX_BUCKET = 'hotspots'
 INFLUX_URL = 'http://localhost:8086'
-
-ifxclient = ifc.InfluxDBClient(url=INFLUX_URL, token='-')
-ifx_query = ifxclient.query_api()
 
 TODAY = datetime.datetime.today()
 
@@ -46,7 +42,7 @@ def get_modis_hotspots(target,target_julian):
     else:
         ret['status'] = 'success'
         ret['data'] = modis_hotspots[target_julian]
-    return ret        
+    return ret
 
 def get_viirs_hotspots(target,target_julian):
     ret = {}
@@ -64,13 +60,16 @@ def get_viirs_hotspots(target,target_julian):
             ret['status'] = 'success'
             ret['data'] = hotspot_points
         else:
-            ret['status'] = 'failed'
+            ret['status'] = 'failed: {}'.format(res.status_code)
     else:
         ret['status'] = 'success'
         ret['data'] = viirs_hotspots[target_julian]
-    return ret   
+    return ret
 
-
+fetch_hotspots = {
+    'viirs': get_viirs_hotspots,
+    'modis': get_modis_hotspots
+}
 
 @module.route('/')
 def index():
@@ -100,11 +99,6 @@ def get_all_hotspots():
     # return as json
     return jsonify(ret)
 
-fetch_hotspots = {
-    'viirs': get_viirs_hotspots,
-    'modis': get_modis_hotspots
-}
-
 @module.route('/hotspots.geojson')
 def get_geojson_hotspots():
     queryargs = request.args
@@ -127,43 +121,10 @@ def get_geojson_hotspots():
     if requested_source is not None:
         sat_src = requested_source
 
-    sat_points = fetch_hotspots[sat_src](target,target_julian)
-    sat_geojson = nrtconv.to_geojson(sat_points['data'])
-    return jsonify(sat_geojson)
-
-@module.route('/ifdb', defaults={'date': None})
-@module.route('/ifdb/<date>')
-def testquery(date):
-    queryargs = request.args
-
-    requested_date = date #queryargs.get('date', type=str)
-    requested_source = queryargs.get('source', type=str)
-    useinfluxql = queryargs.get('influxql', type=int)
-
-    target = TODAY
-    if requested_date is not None:
-        try:
-            target = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
-        except ValueError:
-            target = TODAY
-    target_julian = target.strftime('%Y%j')
-
-    # flux query
-    # this is a goddamn trainwreck holy shit
-    flux_query = """ from(bucket: "hotspots") 
-        |> range(start: 2020-04-01T00:00:00Z, stop: 2020-04-02T00:00:00Z)
-        |> filter(fn: (r) =>
-            r._field != "version" and
-            r._field != "type"
-        )
-        |> pivot(
-            rowKey:["_time"],
-            columnKey: ["_field"],
-            valueColumn: "_value"
-        )
-        |> drop(columns: ["satellite", "_start", "_stop"])
-    """
-    if useinfluxql == 1:
+    if TODAY - target <= datetime.timedelta(days=60):
+        result = fetch_hotspots[sat_src](target,target_julian)
+        sat_points = result['data']
+    else:
         dateplus = target + datetime.timedelta(days=1)
         params = {
             "date": target.strftime("%Y-%m-%d"),
@@ -178,16 +139,10 @@ def testquery(date):
         result = influxdb.query(influxql_str,
                                 epoch='u',
                                 database=INFLUX_BUCKET)
-        # I (ALMOST) GOT THE ORIGINAL TABLE BACK YAY
-        return jsonify(list(result.get_points()))
+        sat_points = list(result.get_points())
+
+    if len(sat_points) > 0:
+        sat_geojson = nrtconv.to_geojson(sat_points)
+        return jsonify(sat_geojson)
     else:
-        flux_res = ifx_query.query_raw(
-            flux_query.format(
-                bucket=INFLUX_BUCKET, 
-                start='2020-04-01T00:00:00Z',
-                stop='2020-04-02T00:00:00Z'
-            )
-        )
-        reslist = [ s.decode('utf-8') for s in flux_res ]
-        return str(reslist)
-    return 'nada'
+        return '', 204
