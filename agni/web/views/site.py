@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, current_app, url_for, request
-from flask import jsonify
+from flask import jsonify, send_from_directory
 
 import json
 import csv
 import datetime
+
+import geojson
 import requests
 
 from agni.acquisitor import fetch_nrt, filtering
@@ -105,6 +107,7 @@ def get_geojson_hotspots():
 
     requested_date = queryargs.get('date', type=str)
     requested_source = queryargs.get('source', type=str)
+    roi_filter = queryargs.get('roi', type=int)
 
     today = datetime.datetime.today()
     target = today
@@ -141,8 +144,18 @@ def get_geojson_hotspots():
                                 database=INFLUX_BUCKET)
         sat_points = list(result.get_points())
 
+    if roi_filter is not None and roi_filter == 1:
+        with current_app.open_resource('regions/kuankreng.geojson', 'r') as f:
+            roi = geojson.load(f)
+            filtered = filtering.filter_shape(sat_points, roi)
+        sat_points = filtered
+
     if len(sat_points) > 0:
         sat_geojson = nrtconv.to_geojson(sat_points)
         return jsonify(sat_geojson)
     else:
         return '', 204
+
+@module.route('/regions/<roi>')
+def serve_roi_file(roi):
+    return send_from_directory('regions', roi)

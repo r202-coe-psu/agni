@@ -50,6 +50,7 @@ modis_marker_dated = {}
 turf_dated = {}
 clustered_layer = leaflet.LayerGroup.new()
 raw_layer = leaflet.LayerGroup.new()
+roi_layer = leaflet.LayerGroup.new()
 
 viirs_mkl = {}
 modis_mkl = {}
@@ -212,6 +213,8 @@ def query_ajax_cluster(target=None):
     data = {}
     if target is not None:
         data = {"date": target}
+
+    data['roi'] = int(document['hotspot-roi'].checked)
 
     jq.ajax('/hotspots.geojson', {
         "dataType": "json",
@@ -391,13 +394,25 @@ base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
     "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 })
+
+def draw_roi(resp, status, jqxhr):
+    roi_layer.clearLayers()
+    leaflet.geoJSON(resp).addTo(roi_layer)
+
+jq.ajax('/regions/kuankreng.geojson', {
+    "dataType": "json",
+    "success": draw_roi
+    }
+)
+
 leaflet.control.layers(
     {
         "Base": base.addTo(lmap)
     },
     {
+        "RoI": roi_layer.addTo(lmap),
+        "Clustered": clustered_layer.addTo(lmap),
         "Raw": raw_layer.addTo(lmap),
-        "Clustered": clustered_layer.addTo(lmap)
     }
 ).addTo(lmap)
 lmap.setView([13, 100.8], 6)
