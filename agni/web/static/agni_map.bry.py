@@ -25,6 +25,11 @@ noise_marker_opts = {
     "radius": 5,
     "color": 'orange'
 }
+high_marker_opts = {
+    "radius": 5,
+    "color": 'red'
+}
+
 
 # set up materialize css stuff
 dp_opts = {
@@ -54,6 +59,8 @@ roi_layer = leaflet.LayerGroup.new()
 
 viirs_mkl = {}
 modis_mkl = {}
+
+using_roi = False
 
 fetch_in_progress = False
 
@@ -108,13 +115,13 @@ def change_or_query(target=None):
     clustered_layer.clearLayers()
 
     try:
-        turf_dated[target_jul, 'raw'].addTo(raw_layer)
-        turf_dated[target_jul, 'turf'].addTo(clustered_layer)
+        turf_dated[target_jul, using_roi, 'raw'].addTo(raw_layer)
+        turf_dated[target_jul, using_roi, 'turf'].addTo(clustered_layer)
         enable_input(True)
     except KeyError:
         fetch_in_progress = True
         query_ajax_cluster(target_str)
-    
+
 def enable_input(state=True):
     document['hotspot-date-offset'].disabled = not state
     document['hotspot-date'].disabled = not state
@@ -126,7 +133,7 @@ def cluster_data(resp, status, jqxhr):
     marker_layer.clearLayers()
     turf_layer = leaflet.LayerGroup.new()
     turf_layer.clearLayers()
-    
+
     geojson = resp
     # draw cluster convex and centroid to separate layer
     def process_cluster(cluster,clusterValue,currentIndex): 
@@ -149,15 +156,30 @@ def cluster_data(resp, status, jqxhr):
         leaflet.geoJSON(cnv).addTo(turf_layer)
 
     # clustering radius in km
-    CLUSTER_RADIUS = 0.750
+    CLUSTER_RADIUS = 0.375 * 1.5
     clustered = turf.clustersDbscan(geojson, CLUSTER_RADIUS)
     turf.clusterEach(clustered, "cluster", process_cluster)
 
     def turf_markers(feature, latlng):
-        if feature.properties.dbscan == 'core':
-            return leaflet.circleMarker(latlng, viirs_marker_opts)
-        else:
-            return leaflet.circleMarker(latlng, noise_marker_opts)
+        opts = {
+            "radius": 5,
+            "stroke" : False,
+            "color": 'orange'
+        }
+        dbscan_color = {
+            "core": 'red',
+            "edge": '#ff00aa',
+            "noise": 'orange'
+        }
+
+        try:
+            opts['color'] = dbscan_color[feature.properties.dbscan]
+            if feature.properties.confidence_1 == 'h':
+                opts['stroke'] = True
+        except AttributeError:
+            pass
+
+        return leaflet.circleMarker(latlng, opts)
 
     def turf_features(feature, layer):
         features_dict = feature.properties.to_dict()
@@ -182,8 +204,8 @@ def cluster_data(resp, status, jqxhr):
         document['hotspot-date'].value, '%Y-%m-%d'
     )
     date_str = thedate.strftime('%Y%j')
-    turf_dated[date_str, 'raw'] = raw_points
-    turf_dated[date_str, 'turf'] = turf_layer
+    turf_dated[date_str, using_roi, 'raw'] = raw_points
+    turf_dated[date_str, using_roi, 'turf'] = turf_layer
 
     raw_points.addTo(raw_layer)
     turf_layer.addTo(clustered_layer)
@@ -214,7 +236,7 @@ def query_ajax_cluster(target=None):
     if target is not None:
         data = {"date": target}
 
-    data['roi'] = int(document['hotspot-roi'].checked)
+    data['roi'] = int(using_roi)
 
     jq.ajax('/hotspots.geojson', {
         "dataType": "json",
@@ -225,6 +247,12 @@ def query_ajax_cluster(target=None):
 
 # /turf test
 
+# RoI
+
+@bind('#hotspot-roi', 'change')
+def enable_roi(ev):
+    global using_roi
+    using_roi = document['hotspot-roi'].checked
 
 # test date input, not final product
 # toggle modis/viirs marker layers
@@ -233,7 +261,7 @@ def checkbox_changed(ev):
         lmap.addLayer(modis_layer)
     else:
         lmap.removeLayer(modis_layer)
-    
+
     if fetch_satellite['viirs']:
         lmap.addLayer(viirs_layer)
     else:
@@ -256,7 +284,7 @@ def enable_sattellite(ev):
         fetch_satellite['viirs'] = False
     checkbox_changed(ev)
 
-#@bind('#hotspot-query', 'click')
+@bind('#hotspot-query', 'click')
 @bind('#hotspot-date', 'change')
 def date_query(ev):
     enable_input(False)

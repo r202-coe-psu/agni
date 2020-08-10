@@ -124,6 +124,7 @@ def get_geojson_hotspots():
     if requested_source is not None:
         sat_src = requested_source
 
+    # fetch live first, then try db
     if TODAY - target <= datetime.timedelta(days=60):
         result = fetch_hotspots[sat_src](target,target_julian)
         sat_points = result['data']
@@ -144,6 +145,7 @@ def get_geojson_hotspots():
                                 database=INFLUX_BUCKET)
         sat_points = list(result.get_points())
 
+    # if RoI filtering is set
     if roi_filter is not None and roi_filter == 1:
         with current_app.open_resource('regions/kuankreng.geojson', 'r') as f:
             roi = geojson.load(f)
