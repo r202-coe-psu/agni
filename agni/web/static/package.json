@@ -8,6 +8,7 @@
   "author": "",
   "license": "UNLICENSED",
   "dependencies": {
+    "@turf/turf": "^5.1.6",
     "brython": "^3.8.8",
     "jquery": "^3.4.1",
     "leaflet": "^1.6.0",

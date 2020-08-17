@@ -1,4 +1,5 @@
 {% extends "/base/default-page.html" %}
+{# vim: set sw=4 et #}
 
 {% block default_head %}
     <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/leaflet/dist/leaflet.css') }}">
@@ -7,6 +8,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/materialize-css/extras/noUiSlider/nouislider.css') }}">
     <script src="{{ url_for('static', filename='node_modules/materialize-css/extras/noUiSlider/nouislider.js') }}"></script>
 
+    <script src="{{ url_for('static', filename='node_modules/@turf/turf/turf.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='node_modules/@turf/turf/turf.js') }}"></script>
 {% endblock default_head %}
 
 {% block additional_head %}
@@ -33,6 +36,12 @@
 #hotspot-query {
   width: 100%;
 }
+.switch {
+  padding:5px 5px;
+  margin: 10px;
+}
+
+
 </style>
 {% endblock additional_head %}
 
