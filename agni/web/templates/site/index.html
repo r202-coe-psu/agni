@@ -62,10 +62,18 @@
             <p class="row range-field">
                 <input type="range" min="0" max="60" value="60" id="hotspot-date-offset" />
             </p>
-            <div class="row" id="nu-slider"></div>
-            <!-- <div class="row">
-                <a class="btn" id="hotspot-query">Get Data</a>
-            </div> -->
+            <div class="input-field">
+                <select id="hotspot-roi-list" class="select">
+                    {% for label, roi in roi_list %}
+                        {% if loop.first %}
+                        <option value="{{roi}}" selected="selected">{{label}}</option>"
+                        {% else %}
+                        <option value="{{roi}}">{{label}}</option>"
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <label>Region</label>
+            </div>
         </form>
         <span id="hotspot-info"</span>
     </div>

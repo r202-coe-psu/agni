@@ -85,60 +85,6 @@ def reshape_csv(raw_csv):
     # return hotspots
     return hotspots
 
-def nrt_to_lineprot(nrt, measure, timekey, tags=None):
-    """ reshape NRT data to line protocol compatible with InfluxDB
-        needs testing
-
-        Args:
-            nrt (dict):
-                NRT data point as dict
-            measure (str):
-                InfluxDB measure name
-            timekey (str):
-                name of key in dict which contains timestamp
-                as unix epocj microseconds
-            tags (list of str):
-                list of keys within dict which should be made into tags
-                instead of fields (optional)
-
-        Return:
-            line_protocol (str):
-                formatted line protocol usable with InfluxDB
-    """
-    line_fields = {}
-    line_tags = {}
-
-    for key, val in nrt.items():
-        if key in tags:
-            _val = str(val)
-            line_tags[key] = _val
-        else:
-            line_fields[key] = val
-
-    # test formatting them into a line protocol format
-    fields_out = [
-        '='.join([str(k), str(v)])
-        for k, v in line_fields.items()
-        if k != timekey
-    ]
-
-    tags_out = [
-        '='.join([str(k), str(v)])
-        for k, v in line_tags.items()
-    ]
-
-    lineprot_str = "{measure},{tags} {fields} {time}".format(
-        measure=measure,
-        tags = ','.join(tags_out),
-        fields=','.join(fields_out),
-        time=str(line_fields[timekey])
-    )
-
-    #print(line_out_str, flush=True)
-    # merge tags and fields into one entity
-    return lineprot_str
-
-
 def request_nrt(date=None, src=None):
     """Fetch NRT Data from NASA (SEA Region) by date
 
@@ -159,7 +105,7 @@ def request_nrt(date=None, src=None):
     #filedate = date.strftime('%Y%j')
 
     url = make_url(src, date)
-    r = requests.get(url, headers={'Authorization': 'Bearer '+TOKEN})
+    r = requests.get(url, headers={'Authorization': 'Bearer {}'.format(TOKEN)})
     return r
 
 def get_nrt_data(date=None, src=None):
@@ -170,7 +116,7 @@ def get_nrt_data(date=None, src=None):
 
     req.raise_for_status()
     hotspots = {}
-    hotspots = reshape_csv(req.text, src['name'])
+    hotspots = reshape_csv(req.text)
 
     return hotspots
 

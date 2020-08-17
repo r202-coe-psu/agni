@@ -25,49 +25,11 @@ INFLUX_URL = 'http://localhost:8086'
 
 TODAY = datetime.datetime.today()
 
-# TODO: fix these 2 shits (get_{modis,viirs}_hotspots())
-def get_modis_hotspots(target,target_julian):
-    ret = {}
-    ret['status'] = None
-    ret['data'] = []
-    hotspot_points = None
-    if target_julian not in modis_hotspots:
-        res = fetch_nrt.request_modis_nrt(target)
-        if res.status_code == 200:
-            hotspot_points = fetch_nrt.reshape_csv(res.text,"modis")
-            hotspot_points = filtering.filter_bbox(hotspot_points, 
-                                                filtering.TH_BBOX)
-            modis_hotspots[target_julian] = hotspot_points
-            ret['status'] = 'success'
-            ret['data'] = hotspot_points
-        else:
-            ret['status'] = 'failed'
-    else:
-        ret['status'] = 'success'
-        ret['data'] = modis_hotspots[target_julian]
-    return ret
+def get_viirs_hotspots(date):
+    return fetch_nrt.get_nrt_data(date, src=fetch_nrt.SRC_VIIRS)
 
-def get_viirs_hotspots(target,target_julian):
-    ret = {}
-    ret['status'] = None
-    ret['data'] = []
-    hotspot_points = None
-
-    if target_julian not in viirs_hotspots:
-        res = fetch_nrt.request_viirs_nrt(target)
-        if res.status_code == 200:
-            hotspot_points = fetch_nrt.reshape_csv(res.text,"viirs")
-            hotspot_points = filtering.filter_bbox(hotspot_points, 
-                                                filtering.TH_BBOX)
-            viirs_hotspots[target_julian] = hotspot_points
-            ret['status'] = 'success'
-            ret['data'] = hotspot_points
-        else:
-            ret['status'] = 'failed: {}'.format(res.status_code)
-    else:
-        ret['status'] = 'success'
-        ret['data'] = viirs_hotspots[target_julian]
-    return ret
+def get_modis_hotspots(date):
+    return fetch_nrt.get_nrt_data(date, src=fetch_nrt.SRC_MODIS)
 
 fetch_hotspots = {
     'viirs': get_viirs_hotspots,
@@ -76,7 +38,10 @@ fetch_hotspots = {
 
 @module.route('/')
 def index():
-    return render_template('/site/index.html')
+    roi_label = ['Thailand', 'Kuan Kreng']
+    roi_def = ['all', 'kuankreng']
+    roi_list = zip(roi_label, roi_def)
+    return render_template('/site/index.html', roi_list=roi_list)
 
 @module.route('/hotspots')
 def get_all_hotspots():
@@ -95,8 +60,8 @@ def get_all_hotspots():
     # probably
     ret = {}
     ret['date_jul'] = target_julian
-    ret['modis'] = get_modis_hotspots(target,target_julian)
-    ret['viirs'] = get_viirs_hotspots(target,target_julian)
+    ret['modis'] = get_modis_hotspots(target)
+    ret['viirs'] = get_viirs_hotspots(target)
     ret['status'] = 'success'
 
     # return as json
@@ -108,7 +73,7 @@ def get_geojson_hotspots():
 
     requested_date = queryargs.get('date', type=str)
     requested_source = queryargs.get('source', type=str)
-    roi_filter = queryargs.get('roi', type=int)
+    roi_name = queryargs.get('roi', type=str)
 
     today = datetime.datetime.today()
     target = today
@@ -127,8 +92,8 @@ def get_geojson_hotspots():
 
     # fetch live first, then try db
     if TODAY - target <= datetime.timedelta(days=60):
-        result = fetch_hotspots[sat_src](target,target_julian)
-        sat_points = result['data']
+        result = fetch_hotspots[sat_src](target)
+        sat_points = result
     else:
         dateplus = target + datetime.timedelta(days=1)
         params = {
@@ -147,8 +112,9 @@ def get_geojson_hotspots():
         sat_points = list(result.get_points())
 
     # if RoI filtering is set
-    if roi_filter is not None and roi_filter == 1:
-        with current_app.open_resource('regions/kuankreng.geojson', 'r') as f:
+    if roi_name is not None and roi_name != 'all':
+        with current_app.open_resource('regions/{}.geojson'.format(roi_name),
+                                       'r') as f:
             roi = geojson.load(f)
             filtered = filtering.filter_shape(sat_points, roi)
         sat_points = filtered

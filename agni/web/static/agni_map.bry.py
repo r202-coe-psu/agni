@@ -9,38 +9,40 @@ mcss = window.M
 
 _jsdate_today = javascript.Date.new()
 
-viirs_marker_opts = {
-    "stroke": False,
-    "radius": 5,
-    "color": 'red'
-}
-modis_marker_opts = {
-    "stroke": False,
-    "radius": 12,
-    "color": 'orange'
-}
-
-noise_marker_opts = {
+BASE_MARKER_OPTS = {
     "stroke": False,
     "radius": 5,
     "color": 'orange'
 }
-high_marker_opts = {
-    "radius": 5,
-    "color": 'red'
+
+DBSCAN_MARKER_OPTS = {
+    "core": dict(BASE_MARKER_OPTS, color="red", opacity=0.3),
+    "edge": dict(BASE_MARKER_OPTS, color="red"),
+    "noise": dict(BASE_MARKER_OPTS, color="orange"),
 }
 
+ROI_STYLE = {
+    "stroke": True,
+    "color": '#33aa33',
+    "opacity": 0.8,
+    "fillColor": '#33aa33',
+    "fillOpacity": 0.1
+}
 
 # set up materialize css stuff
-dp_opts = {
+DP_OPTS = {
     "setDefaultDate": True,
     "defaultDate": _jsdate_today,
     "maxDate": _jsdate_today,
     "format": "yyyy-mm-dd"
 }
 
+# materialize css init
 dp_elems = document.querySelectorAll('.datepicker')
-dp_instances = mcss.Datepicker.init(dp_elems, dp_opts)
+dp_instances = mcss.Datepicker.init(dp_elems, DP_OPTS)
+
+sel_elems = document.querySelectorAll('.select')
+sel_instances = mcss.FormSelect.init(sel_elems)
 
 lmap = leaflet.map("mapdisplay",{"preferCanvas": True})
 marker_layer = leaflet.LayerGroup.new()
@@ -60,7 +62,8 @@ roi_layer = leaflet.LayerGroup.new()
 viirs_mkl = {}
 modis_mkl = {}
 
-using_roi = False
+roi_name = False
+roi_name = 'all'
 
 fetch_in_progress = False
 
@@ -107,8 +110,8 @@ def change_or_query(target=None):
     clustered_layer.clearLayers()
 
     try:
-        turf_dated[target_jul, using_roi, 'raw'].addTo(raw_layer)
-        turf_dated[target_jul, using_roi, 'turf'].addTo(clustered_layer)
+        turf_dated[target_jul, roi_name, 'raw'].addTo(raw_layer)
+        turf_dated[target_jul, roi_name, 'turf'].addTo(clustered_layer)
         enable_input(True)
     except KeyError:
         fetch_in_progress = True
@@ -146,6 +149,11 @@ def map_options_changed(ev):
         new_offset = today - date_cal
         document['hotspot-date-offset'].value = max(0, 60-new_offset.days)
         target = date_cal
+
+    elif change_src == 'hotspot-roi-list':
+        global roi_name
+        roi_name = ev.target.value
+
 # turf test
 # only works with VIIRS data point
 
@@ -181,23 +189,15 @@ def cluster_data(resp, status, jqxhr):
     turf.clusterEach(clustered, "cluster", process_cluster)
 
     def turf_markers(feature, latlng):
-        opts = {
-            "radius": 5,
-            "stroke" : False,
-            "color": 'orange'
-        }
-        dbscan_color = {
-            "core": 'red',
-            "edge": '#ff00aa',
-            "noise": 'orange'
-        }
+        props = feature.properties
 
         try:
-            opts['color'] = dbscan_color[feature.properties.dbscan]
-            if feature.properties.confidence_1 == 'h':
-                opts['stroke'] = True
+            conf = props.confidence_1
         except AttributeError:
-            pass
+            conf = 'n'
+
+        opts = dict(DBSCAN_MARKER_OPTS[props.dbscan],
+                    stroke=(conf == 'h'))
 
         return leaflet.circleMarker(latlng, opts)
 
@@ -224,8 +224,8 @@ def cluster_data(resp, status, jqxhr):
         document['hotspot-date'].value, '%Y-%m-%d'
     )
     date_str = thedate.strftime('%Y%j')
-    turf_dated[date_str, using_roi, 'raw'] = raw_points
-    turf_dated[date_str, using_roi, 'turf'] = turf_layer
+    turf_dated[date_str, roi_name, 'raw'] = raw_points
+    turf_dated[date_str, roi_name, 'turf'] = turf_layer
 
     raw_points.addTo(raw_layer)
     turf_layer.addTo(clustered_layer)
@@ -256,7 +256,7 @@ def query_ajax_cluster(target=None):
     if target is not None:
         data = {"date": target}
 
-    data['roi'] = int(using_roi)
+    data['roi'] = roi_name
 
     jq.ajax('/hotspots.geojson', {
         "dataType": "json",
@@ -269,41 +269,10 @@ def query_ajax_cluster(target=None):
 
 # RoI
 
-@bind('#hotspot-roi', 'change')
-def enable_roi(ev):
-    global using_roi
-    using_roi = document['hotspot-roi'].checked
-
-# test date input, not final product
-# toggle modis/viirs marker layers
-def checkbox_changed(ev):
-    if fetch_satellite['modis']:
-        lmap.addLayer(modis_layer)
-    else:
-        lmap.removeLayer(modis_layer)
-
-    if fetch_satellite['viirs']:
-        lmap.addLayer(viirs_layer)
-    else:
-        lmap.removeLayer(viirs_layer)
-
-# TODO: nuke this shit
-@bind('#hotspot-modis', 'change')
-def enable_sattellite(ev):
-    if document['hotspot-modis'].checked:
-        fetch_satellite['modis'] = True
-    else:
-        fetch_satellite['modis'] = False
-    checkbox_changed(ev)
-
-@bind('#hotspot-viirs', 'change')
-def enable_sattellite(ev):
-    if document['hotspot-viirs'].checked:
-        fetch_satellite['viirs'] = True
-    else:
-        fetch_satellite['viirs'] = False
-    checkbox_changed(ev)
-# /end nuke
+#@bind('#hotspot-roi', 'change')
+#def enable_roi(ev):
+#    global using_roi
+#    using_roi = document['hotspot-roi'].checked
 
 @bind('#hotspot-query', 'click')
 @bind('#hotspot-date', 'change')
@@ -419,9 +388,6 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
 
         data = resp_data
         date_jul = resp_data['date_jul']
-        # FIXME: deal with this abomination
-        draw_chunks(data.modis['data'],date_jul,modis_marker_opts,modis_layer,modis_mkl,modis_marker_dated)
-        draw_chunks(data.viirs['data'],date_jul,viirs_marker_opts,viirs_layer,viirs_mkl,viirs_marker_dated)
     else:
         document['hotspot-info'].text = 'Error retrieving hotspots'
         enable_input(True)
@@ -443,7 +409,7 @@ base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
 
 def draw_roi(resp, status, jqxhr):
     roi_layer.clearLayers()
-    leaflet.geoJSON(resp).addTo(roi_layer)
+    leaflet.geoJSON(resp,{"style":ROI_STYLE}).addTo(roi_layer)
 
 jq.ajax('/regions/kuankreng.geojson', {
     "dataType": "json",
