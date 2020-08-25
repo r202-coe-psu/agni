@@ -5,3 +5,8 @@ flask-login
 flask-allows
 authlib
 loginpass
+pyshp
+shapely
+geojson
+utm
+flask-influxdb
