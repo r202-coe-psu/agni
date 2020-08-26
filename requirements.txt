@@ -9,4 +9,5 @@ pyshp
 shapely
 geojson
 utm
-flask-influxdb
+Flask-InfluxDB
+pyproj
