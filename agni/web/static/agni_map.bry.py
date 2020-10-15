@@ -1,7 +1,7 @@
 from browser import document, window, ajax, bind, timer
 import javascript
 import datetime
-
+import math 
 leaflet = window.L
 turf = window.turf
 jq = window.jQuery
@@ -56,6 +56,7 @@ turf_dated = {}
 clustered_layer = leaflet.LayerGroup.new()
 raw_layer = leaflet.LayerGroup.new()
 roi_layer = leaflet.LayerGroup.new()
+grid_layer = leaflet.LayerGroup.new()
 
 viirs_mkl = {}
 modis_mkl = {}
@@ -427,6 +428,59 @@ def draw_roi(resp, status, jqxhr):
     roi_layer.clearLayers()
     leaflet.geoJSON(resp).addTo(roi_layer)
 
+def draw_grid(data):
+    #EMPTY = 0
+    #TREE = 1
+    #FIRE = 2
+    GRIDS = 10
+    pi = math.pi
+    r_earth = 6371000.0 #m
+    dy2 = 350/2
+    dx2 = 350/2
+
+    for point in data:
+        lat = point['latitude']
+        lon = point['longitude']
+        point_type = point['type']
+
+        step_lat =  (dy2 / r_earth) * (180 / pi)
+        step_lon =  (dx2 / r_earth) * (180 / pi) / math.cos(lat * pi/180)
+        bounds = [(lat-step_lat,lon-step_lon),(lat+step_lat,lon+step_lon)]
+        if point_type == 'FIRE':
+            leaflet.rectangle(bounds,{"color": "red", "weight": 1}).addTo(grid_layer)
+        elif point_type == 'EMPTY':
+            leaflet.rectangle(bounds,{"color": "brown", "weight": 1}).addTo(grid_layer)
+
+test_grid_data = [{'latitude': 17.896375147966477,
+  'longitude': 97.94674857702424,
+  'base_date': '2019-04-05',
+  'type': 'FIRE'},
+ {'latitude': 17.896375147966477,
+  'longitude': 97.95005408526744,
+  'base_date': '2019-04-05',
+  'type': 'FIRE'},
+ {'latitude': 17.896375147966477,
+  'longitude': 97.95335959351065,
+  'base_date': '2019-04-05',
+  'type': 'FIRE'},
+ {'latitude': 17.896375147966477,
+  'longitude': 98.04260831607714,
+  'base_date': '2019-04-05',
+  'type': 'EMPTY'},
+ {'latitude': 17.89952277358719,
+  'longitude': 97.715363,
+  'base_date': '2019-04-05',
+  'type': 'EMPTY'},
+ {'latitude': 17.89952277358719,
+  'longitude': 97.94344306878104,
+  'base_date': '2019-04-05',
+  'type': 'EMPTY'},
+ {'latitude': 17.89952277358719,
+  'longitude': 97.94674857702424,
+  'base_date': '2019-04-05',
+  'type': 'EMPTY'}]
+draw_grid(test_grid_data)
+
 jq.ajax('/regions/kuankreng.geojson', {
     "dataType": "json",
     "success": draw_roi
@@ -441,9 +495,11 @@ leaflet.control.layers(
         "RoI": roi_layer.addTo(lmap),
         "Clustered": clustered_layer.addTo(lmap),
         "Raw": raw_layer.addTo(lmap),
+        "Grid" : grid_layer.addTo(lmap)
     }
 ).addTo(lmap)
 lmap.setView([13, 100.8], 6)
+
 leaflet.control.scale({"imperial": False}).addTo(lmap)
 
 # for browser console debug only
