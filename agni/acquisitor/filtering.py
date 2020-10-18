@@ -11,6 +11,7 @@ TH_BBOX_EXACT = (97.3758964376, 5.69138418215, 105.589038527, 20.4178496363)
 TH_BBOX = (96.3758964376, 4.69138418215, 106.589038527, 21.4178496363)
 
 BUFFER_DISTANCE_M = 375
+UTM_ZONE_N = 47
 
 def filter_bbox(nrt_points, bbox):
     """filter NRT data by bounding box (keep points inside)
@@ -54,7 +55,7 @@ def filter_shape(nrt_points, shape, buffer=None):
         return (east, north)
 
     def shapely_utm2latlon(x, y, z=None):
-        lat, lon = utm.to_latlon(x, y, 47, northern=True, strict=False)
+        lat, lon = utm.to_latlon(x, y, UTM_ZONE_N, northern=True, strict=False)
         return (lon, lat)
 
     def shapely_lonlat2utm(x, y, z=None):
