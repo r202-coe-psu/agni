@@ -1,5 +1,4 @@
-class FireGridType:
-    EMPTY, TREE, FIRE = 0, 1, 2
+G_EMPTY, G_TREE, G_FIRE = 0, 1, 2
 
 #
 # probably process everything in UTM coords for distance simplicity
@@ -24,13 +23,15 @@ def generate_firegrid(nrtpoints, sample_area, distance):
     """
     pass
 
-def burn_simple_iterate(firegrid):
+def burn_simple_iterate(firegrid, burnedgrid):
     """ try to predict which grid will likely burn based on current
         fire grid burn map
     
     Args:
         firegrid:
             fire grid of current iteration
+        burnedgrid:
+            grid of burned cells, fire will not spread to these cells
 
     Returns:
         firegrid:
@@ -44,6 +45,6 @@ def firegrid_dump(firegrid):
 
 def firegrid_load(firegrid_points):
     """ load firegrid datapoints and reconstruct firegrid. 
-    flipside of firegrid_dump()
+    inverse of firegrid_dump()
     """
     pass
