@@ -1,9 +1,7 @@
 G_EMPTY, G_TREE, G_FIRE = 0, 1, 2
 
-#
 # probably process everything in UTM coords for distance simplicity
 # 1 unit == 1m irl
-#
 
 def generate_firegrid(nrtpoints, sample_area, distance):
     """ generate fire grid from data points over a given area
@@ -23,7 +21,7 @@ def generate_firegrid(nrtpoints, sample_area, distance):
     """
     pass
 
-def burn_simple_iterate(firegrid, burnedgrid):
+def firegrid_model_step(firegrid, burnedgrid):
     """ try to predict which grid will likely burn based on current
         fire grid burn map
     
