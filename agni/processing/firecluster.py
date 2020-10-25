@@ -20,7 +20,8 @@ def get_epsilon(dist_km):
     return dist_km / KMS_PER_RAD
 
 def cluster_fire(nrt_points, db=None, position_key=None):
-    """ perform clustering using DBSCAN by default
+    """
+    perform clustering using DBSCAN by default
 
     Args:
         nrt_points (list[dict]):
@@ -46,7 +47,14 @@ def cluster_fire(nrt_points, db=None, position_key=None):
 
     labels = db.labels_
     labels_series = pd.Series(labels)
-    nrt_df[position_key] = labels_series
+    nrt_df['cluster'] = labels_series
+
+    # classifying cluster types
+    dbccol = pd.Series(labels)
+    dbccol[db.core_sample_indices_] = 'core'
+    dbccol[dbccol == -1] = 'noise'
+    dbccol[dbccol.apply(lambda x: isinstance(x, int))] = 'edge'
+    nrt_df['dbscan'] = dbccol
 
     return nrt_df.to_dict()
 
@@ -60,8 +68,9 @@ def get_centroid(cluster):
 def find_cluster_centroids(
         clustered_data, coords_key=None, labels_key=None, noise_label=None
     ):
-    """ find cluster centroids from given clustered data
-        the input data MUST be clustered beforehand
+    """ 
+    find cluster centroids from given clustered data
+    the input data MUST be clustered beforehand
     """
     nrt_df = pd.DataFrame(clustered_data)
 
