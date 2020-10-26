@@ -9,7 +9,7 @@ from shapely.geometry import MultiPoint
 
 # Constants
 KMS_PER_RAD = 6371.0088
-STEP_SIZE_KM = 0.375
+STEP_SIZE_KM = 0.375 * 1.5
 CLUSTER_DB = cluster.DBSCAN(algorithm='ball_tree', metric='haversine')
 
 COORDS_KEY = ['latitude', 'longitude']
@@ -46,21 +46,24 @@ def cluster_fire(nrt_points, db=None, key=None, eps=None):
     if db is None:
         db = CLUSTER_DB
         db.eps = STEP_SIZE_KM / KMS_PER_RAD
+        db.min_samples = 5
 
     db.fit(np.radians(coords))
 
     labels = db.labels_
     labels_series = pd.Series(labels)
+    labels_series[db.labels_ == -1] = np.nan
     nrt_df['cluster'] = labels_series
 
     # classifying cluster types
     dbccol = pd.Series(labels)
+    dbccol[:] = 'edge'
     dbccol[db.core_sample_indices_] = 'core'
-    dbccol[dbccol == -1] = 'noise'
-    dbccol[dbccol.apply(lambda x: isinstance(x, int))] = 'edge'
+    dbccol[db.labels_ == -1] = 'noise'
     nrt_df['dbscan'] = dbccol
 
-    return nrt_df.to_dict()
+    # https://stackoverflow.com/a/47544280
+    return nrt_df.T.apply(lambda x: x.dropna().to_dict()).tolist()
 
 def get_centroid(cluster):
     """ get centroids from group of points """

@@ -198,20 +198,18 @@ def cluster_data(resp, status, jqxhr):
 
     # clustering radius in km
     CLUSTER_RADIUS = 0.375 * 1.5
-    clustered = turf.clustersDbscan(geojson, CLUSTER_RADIUS)
+    #clustered = turf.clustersDbscan(geojson, CLUSTER_RADIUS)
+    clustered = geojson
     turf.clusterEach(clustered, "cluster", process_cluster)
 
     def turf_markers(feature, latlng):
-        props = feature.properties
-
+        props = feature.properties.to_dict()
         try:
             conf = props.confidence_1
         except AttributeError:
             conf = 'n'
-
-        opts = dict(DBSCAN_MARKER_OPTS[props.dbscan],
+        opts = dict(DBSCAN_MARKER_OPTS[props['dbscan']],
                     stroke=(conf == 'h'))
-
         return leaflet.circleMarker(latlng, opts)
 
     def turf_features(feature, layer):
@@ -271,7 +269,7 @@ def query_ajax_cluster(target=None):
 
     data['roi'] = roi_name
 
-    jq.ajax('/hotspots.geojson', {
+    jq.ajax('/clustered.geojson', {
         "dataType": "json",
         "data": data,
         "success": query_succes,

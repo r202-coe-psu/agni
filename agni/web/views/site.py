@@ -72,39 +72,39 @@ def get_all_hotspots():
 
     requested_date = queryargs.get('date', type=str)
     today = datetime.datetime.today()
-    target = today
+    datestart = today
     if requested_date is not None:
         try:
-            target = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
+            datestart = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
         except ValueError:
-            target = today
-    target_julian = target.strftime('%Y%j')
+            datestart = today
+    target_julian = datestart.strftime('%Y%j')
     # in practice, we does query on db and return data
     # probably
     ret = {}
     ret['date_jul'] = target_julian
-    ret['modis'] = get_modis_hotspots(target)
-    ret['viirs'] = get_viirs_hotspots(target)
+    ret['modis'] = get_modis_hotspots(datestart)
+    ret['viirs'] = get_viirs_hotspots(datestart)
     ret['status'] = 'success'
 
     # return as json
     return jsonify(ret)
 
-def lookup_data(target, dateend=None, sat_src=None, livedays=None):
+def lookup_data(datestart, dateend=None, sat_src=None, livedays=None):
     sat_src = 'viirs' if sat_src is None else sat_src
     livedays = 60 if livedays is None else livedays
     # fetch live first, then try db
-    if TODAY - target <= datetime.timedelta(days=livedays):
-        result = fetch_hotspots[sat_src](target)
+    if TODAY - datestart <= datetime.timedelta(days=livedays):
+        result = fetch_hotspots[sat_src](datestart)
         sat_points = result
     else:
         if dateend is not None:
             dateplus = dateend
         else:
-            dateplus = target + datetime.timedelta(days=1)
+            dateplus = datestart + datetime.timedelta(days=1)
         
         params = {
-            "date": target.strftime("%Y-%m-%d"),
+            "date": datestart.strftime("%Y-%m-%d"),
             "dateplus": dateplus.strftime('%Y-%m-%d')
         }
         # OH MAN I AM NOT GOOD WITH PARAMS PLZ TO HELP
@@ -129,13 +129,13 @@ def get_geojson_hotspots():
     roi_name = queryargs.get('roi', type=str)
 
     today = datetime.datetime.today()
-    target = today
+    datestart = today
     if requested_date is not None:
         try:
-            target = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
+            datestart = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
         except ValueError:
-            target = today
-    target_julian = target.strftime('%Y%j')
+            datestart = today
+    target_julian = datestart.strftime('%Y%j')
     # in practice, we does query on db and return data
     # probably
 
@@ -143,7 +143,7 @@ def get_geojson_hotspots():
     if requested_source is not None:
         sat_src = requested_source
     
-    sat_points = lookup_data(target, sat_src=sat_src)
+    sat_points = lookup_data(datestart, sat_src=sat_src)
 
     # if RoI filtering is set
     if roi_name is not None and roi_name != 'all':
@@ -151,6 +151,8 @@ def get_geojson_hotspots():
         roi = geojson.loads(s)
         filtered = filtering.filter_shape(sat_points, roi)
         sat_points = filtered
+    elif roi_name == 'all':
+        sat_points = filtering.filter_bbox(sat_points, filtering.TH_BBOX)
 
     if len(sat_points) > 0:
         sat_geojson = nrtconv.to_geojson(sat_points)
@@ -161,3 +163,40 @@ def get_geojson_hotspots():
 @module.route('/regions/<roi>')
 def serve_roi_file(roi):
     return send_from_directory('regions', roi)
+
+@module.route('/clustered.geojson')
+def get_clustered_hotspots():
+    queryargs = request.args
+
+    requested_date = queryargs.get('date', type=str)
+    roi_name = queryargs.get('roi', type=str)
+    area = queryargs.get('area', type=str)
+    predict_lag = queryargs.get('lag', type=int)
+
+    today = datetime.datetime.today()
+    datestart = today
+    if requested_date is not None:
+        try:
+            datestart = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
+        except ValueError:
+            datestart = today
+    target_julian = datestart.strftime('%Y%j')
+    
+    sat_src = None
+    sat_points = lookup_data(datestart, sat_src=sat_src)
+
+    # if RoI filtering is set
+    if roi_name is not None and roi_name != 'all':
+        s = pkg_res.read_text(regions, '{}.geojson'.format(roi_name))
+        roi = geojson.loads(s)
+        filtered = filtering.filter_shape(sat_points, roi)
+        sat_points = filtered
+    elif roi_name == 'all':
+        sat_points = filtering.filter_bbox(sat_points, filtering.TH_BBOX)
+
+    if len(sat_points) > 0:
+        clustered = firecluster.cluster_fire(sat_points)
+        sat_geojson = nrtconv.to_geojson(clustered)
+        return jsonify(sat_geojson)
+    else:
+        return '', 204
