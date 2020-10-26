@@ -67,10 +67,10 @@ def filter_shape(nrt_points, shape, buffer=None):
     # make RoI shapes
     shp_features = shape['features']
     shp_shapely = [
-        shapely.geometry.shape(f['geometry'])
-        for f in shp_features
+        shapely.geometry.shape(feature["geometry"]).buffer(0) 
+        for feature in shp_features
     ]
-    roi_shape = shapely.geometry.MultiPolygon(shp_shapely)
+    roi_shape = shapely.geometry.GeometryCollection(shp_shapely)
 
     if buffered:
         roi_shape = roi_shape.buffer(BUFFER_DISTANCE_M)
