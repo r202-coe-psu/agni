@@ -44,7 +44,12 @@ dp_instances = mcss.Datepicker.init(dp_elems, DP_OPTS)
 sel_elems = document.querySelectorAll('.select')
 sel_instances = mcss.FormSelect.init(sel_elems)
 
-lmap = leaflet.map("mapdisplay",{"preferCanvas": True})
+lmap = leaflet.map("mapdisplay", {
+    "preferCanvas": True,
+    "doubleClickZoom": False,
+    "editable": True
+})
+
 marker_layer = leaflet.LayerGroup.new()
 marker_dated = {}
 
@@ -57,7 +62,7 @@ modis_marker_dated = {}
 turf_dated = {}
 clustered_layer = leaflet.LayerGroup.new()
 raw_layer = leaflet.LayerGroup.new()
-roi_layer = leaflet.LayerGroup.new()
+roi_layer = leaflet.FeatureGroup.new()
 
 viirs_mkl = {}
 modis_mkl = {}
@@ -166,6 +171,58 @@ def map_options_changed(ev):
         global roi_name
         roi_name = ev.target.value
         draw_roi(roi_name)
+
+predict_zone = 'zone-none'
+zone_layer = leaflet.LayerGroup.new()
+zone_rect = None
+zone_bounds = None
+
+def dumpbounds(ev):
+    print(ev.layer.getBounds().toBBoxString())
+    ev.layer.editor.toggleEdit()
+zone_layer.on('dbclick', dumpbounds)
+
+@bind('#predict-options', 'change')
+#@bind('#predict-options', 'click')
+def predict_options_changed(ev):
+    global predict_zone
+    src = ev.target.id
+    predict_zone = src
+    window.predict_zone = predict_zone
+
+@bind('#draw-zone', 'click')
+def draw_zone_rect(ev):
+    global zone_rect
+    zone_layer.clearLayers()
+    zone_rect = lmap.editTools.startRectangle()
+    zone_rect.addTo(zone_layer)
+
+def on_draw_rect(ev):
+    global zone_bounds
+    bounds = ev.layer.getBounds().toBBoxString()
+    zone_bounds = bounds
+    ev.layer.dragging.enable()
+    #ev.layer.editor.disable()
+
+def on_drag_rect(ev):
+    global zone_bounds
+    bounds = ev.layer.getBounds().toBBoxString()
+    zone_bounds = bounds
+
+@bind('#do-predict', 'click')
+def request_predict(ev):
+    print(predict_zone)
+    if predict_zone == 'zone-rect' and zone_rect is not None:
+        bounds = zone_bounds
+        print(bounds)
+    elif predict_zone == 'zone-roi' and roi_name != 'all':
+        bounds = roi_layer.getBounds().toBBoxString()
+        print(bounds)
+    else:
+        print('not possible')
+
+lmap.on('editable:drawing:commit', on_draw_rect)
+lmap.on('editable:dragend', on_drag_rect)
 
 # turf test
 # only works with VIIRS data point
@@ -436,6 +493,7 @@ leaflet.control.layers(
         "RoI": roi_layer.addTo(lmap),
         "Clustered": clustered_layer.addTo(lmap),
         "Raw": raw_layer.addTo(lmap),
+        "Zone": zone_layer.addTo(lmap)
     }
 ).addTo(lmap)
 lmap.setView([13, 100.8], 6)

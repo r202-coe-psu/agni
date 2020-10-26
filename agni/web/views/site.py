@@ -170,8 +170,6 @@ def get_clustered_hotspots():
 
     requested_date = queryargs.get('date', type=str)
     roi_name = queryargs.get('roi', type=str)
-    area = queryargs.get('area', type=str)
-    predict_lag = queryargs.get('lag', type=int)
 
     today = datetime.datetime.today()
     datestart = today

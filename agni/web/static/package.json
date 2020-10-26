@@ -12,6 +12,8 @@
     "brython": "^3.8.8",
     "jquery": "^3.4.1",
     "leaflet": "^1.6.0",
+    "leaflet-editable": "^1.2.0",
+    "leaflet.path.drag": "0.0.6",
     "materialize-css": "^1.0.0"
   },
   "devDependencies": {}
