@@ -9,8 +9,9 @@ from shapely.geometry import MultiPoint
 
 # Constants
 KMS_PER_RAD = 6371.0088
-CLUSTER_DB = cluster.DBSCAN(eps=eps, min_samples=min_samples, 
-                            algorithm='ball_tree', metric='haversine')
+STEP_SIZE_KM = 0.375
+CLUSTER_DB = cluster.DBSCAN(algorithm='ball_tree', metric='haversine')
+
 COORDS_KEY = ['latitude', 'longitude']
 CLUSTER_KEY = 'cluster'
 
@@ -19,7 +20,7 @@ def get_epsilon(dist_km):
 
     return dist_km / KMS_PER_RAD
 
-def cluster_fire(nrt_points, db=None, position_key=None):
+def cluster_fire(nrt_points, db=None, key=None, eps=None):
     """
     perform clustering using DBSCAN by default
 
@@ -28,7 +29,7 @@ def cluster_fire(nrt_points, db=None, position_key=None):
             input data points
         db (sklearn.cluster) (optional):
             custom clustering model compatible with sklearn.cluster module
-        position_key (list[str]) (optional)
+        key (list[str]) (optional)
             custom key for extracting location info from data points
             defaults to ['latitude', 'longitude']
 
@@ -42,7 +43,10 @@ def cluster_fire(nrt_points, db=None, position_key=None):
     coords = nrt_df[key].to_numpy()
 
     # do clustering using dbscan
-    db = CLUSTER_DB if db is None else db
+    if db is None:
+        db = CLUSTER_DB
+        db.eps = STEP_SIZE_KM / KMS_PER_RAD
+
     db.fit(np.radians(coords))
 
     labels = db.labels_
@@ -75,7 +79,7 @@ def find_cluster_centroids(
     nrt_df = pd.DataFrame(clustered_data)
 
     labels_key = CLUSTER_KEY if labels_key is None else labels_key
-    coords_key = COORDS_KEY if coords is None else coords_key
+    coords_key = COORDS_KEY if coords_key is None else coords_key
     noise_label = -1 if noise_label is None else noise_label
 
     if labels_key not in nrt_df.columns:

@@ -11,6 +11,7 @@ import requests
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv
 from agni.models import influxdb
+from agni.processing import firecluster, firepredictor
 
 module = Blueprint('site', __name__)
 
