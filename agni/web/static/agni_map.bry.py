@@ -129,6 +129,18 @@ def date_from_offset(offset, maxdelta=60):
 
     return today-delta
 
+def draw_roi_jq(resp, status, jqxhr):
+    leaflet.geoJSON(resp,{"style":ROI_STYLE}).addTo(roi_layer)
+
+def draw_roi(roi_name, clear=True):
+    if clear:    
+        roi_layer.clearLayers()
+    if roi_name != 'all':
+        jq.ajax('/regions/{}.geojson'.format(roi_name), {
+            "dataType": "json",
+            "success": draw_roi_jq
+        })
+
 @bind('#map-options', 'change')
 def map_options_changed(ev):
     today = datetime.datetime.today()
@@ -153,6 +165,7 @@ def map_options_changed(ev):
     elif change_src == 'hotspot-roi-list':
         global roi_name
         roi_name = ev.target.value
+        draw_roi(roi_name)
 
 # turf test
 # only works with VIIRS data point
@@ -404,18 +417,18 @@ lmap.on('load', get_point_jq)
 
 base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
-    "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    "attribution": ( 
+        '&copy; '
+        '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        ' contributors'
+    )
 })
 
-def draw_roi(resp, status, jqxhr):
-    roi_layer.clearLayers()
-    leaflet.geoJSON(resp,{"style":ROI_STYLE}).addTo(roi_layer)
-
-jq.ajax('/regions/kuankreng.geojson', {
-    "dataType": "json",
-    "success": draw_roi
-    }
-)
+#jq.ajax('/regions/kuankreng.geojson', {
+#    "dataType": "json",
+#    "success": draw_roi
+#    }
+#)
 
 leaflet.control.layers(
     {
