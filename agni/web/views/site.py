@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, current_app, url_for, request
 from flask import jsonify, send_from_directory
 
+import pathlib
 import json
 import csv
 import datetime
@@ -8,10 +9,16 @@ import datetime
 import geojson
 import requests
 
+try:
+    import importlib.resources as pkg_res
+except ImportError:
+    import importlib_resources as pkg_res
+
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv
 from agni.models import influxdb
 from agni.processing import firecluster, firepredictor
+from agni.web import regions
 
 module = Blueprint('site', __name__)
 
@@ -39,9 +46,24 @@ fetch_hotspots = {
 
 @module.route('/')
 def index():
-    roi_label = ['Thailand', 'Kuan Kreng']
-    roi_def = ['all', 'kuankreng']
-    roi_list = zip(roi_label, roi_def)
+    roi_none = ['Thailand', 'all']
+    roi_list = [roi_none]
+
+    region_list = [ 
+        roi
+        for roi in pkg_res.contents(regions) 
+        if 'geojson' in pathlib.Path(roi).suffix
+    ]
+    for roi_file in region_list:
+        # get region name from geojson
+        roi_str = pkg_res.read_text(regions, roi_file)
+        roi_geojson = geojson.loads(roi_str)
+        roi_feature = roi_geojson['features'][0]
+        roi_label = roi_feature['properties']['name']
+        # get matching filename
+        roi_def = pathlib.Path(roi_file).stem
+        roi_list.append([roi_label, roi_def])
+
     return render_template('/site/index.html', roi_list=roi_list)
 
 @module.route('/hotspots')
@@ -68,6 +90,36 @@ def get_all_hotspots():
     # return as json
     return jsonify(ret)
 
+def lookup_data(target, dateend=None, sat_src=None, livedays=None):
+    sat_src = 'viirs' if sat_src is None else sat_src
+    livedays = 60 if livedays is None else livedays
+    # fetch live first, then try db
+    if TODAY - target <= datetime.timedelta(days=livedays):
+        result = fetch_hotspots[sat_src](target)
+        sat_points = result
+    else:
+        if dateend is not None:
+            dateplus = dateend
+        else:
+            dateplus = target + datetime.timedelta(days=1)
+        
+        params = {
+            "date": target.strftime("%Y-%m-%d"),
+            "dateplus": dateplus.strftime('%Y-%m-%d')
+        }
+        # OH MAN I AM NOT GOOD WITH PARAMS PLZ TO HELP
+        influxql_str = """
+            select * from "hotspots"
+            where "time" >= '{date}'
+                and time < '{dateplus}';
+        """.format(**params)
+        result = influxdb.query(influxql_str,
+                                epoch='u',
+                                database=INFLUX_BUCKET)
+        sat_points = list(result.get_points())
+    
+    return sat_points
+
 @module.route('/hotspots.geojson')
 def get_geojson_hotspots():
     queryargs = request.args
@@ -87,37 +139,17 @@ def get_geojson_hotspots():
     # in practice, we does query on db and return data
     # probably
 
-    sat_src = 'viirs'
+    sat_src = None
     if requested_source is not None:
         sat_src = requested_source
-
-    # fetch live first, then try db
-    if TODAY - target <= datetime.timedelta(days=60):
-        result = fetch_hotspots[sat_src](target)
-        sat_points = result
-    else:
-        dateplus = target + datetime.timedelta(days=1)
-        params = {
-            "date": target.strftime("%Y-%m-%d"),
-            "dateplus": dateplus.strftime('%Y-%m-%d')
-        }
-        # OH MAN I AM NOT GOOD WITH PARAMS PLZ TO HELP
-        influxql_str = """
-            select * from "hotspots"
-            where "time" >= '{date}'
-                and time < '{dateplus}';
-        """.format(**params)
-        result = influxdb.query(influxql_str,
-                                epoch='u',
-                                database=INFLUX_BUCKET)
-        sat_points = list(result.get_points())
+    
+    sat_points = lookup_data(target, sat_src=sat_src)
 
     # if RoI filtering is set
     if roi_name is not None and roi_name != 'all':
-        with current_app.open_resource('regions/{}.geojson'.format(roi_name),
-                                       'r') as f:
-            roi = geojson.load(f)
-            filtered = filtering.filter_shape(sat_points, roi)
+        s = pkg_res.read_text(regions, '{}.geojson'.format(roi_name))
+        roi = geojson.loads(s)
+        filtered = filtering.filter_shape(sat_points, roi)
         sat_points = filtered
 
     if len(sat_points) > 0:
