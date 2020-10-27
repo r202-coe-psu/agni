@@ -20,6 +20,28 @@ def get_epsilon(dist_km):
 
     return dist_km / KMS_PER_RAD
 
+def process_labels(nrt_df, db):
+    labels = db.labels_
+    labels_series = pd.Series(labels)
+    labels_series[db.labels_ == -1] = np.nan
+    nrt_df['cluster'] = labels_series
+
+    # classifying cluster types
+    dbccol = pd.Series(labels)
+    dbccol[:] = 'edge'
+    dbccol[db.core_sample_indices_] = 'core'
+    dbccol[db.labels_ == -1] = 'noise'
+    nrt_df['dbscan'] = dbccol
+
+    return nrt_df
+
+def partial_record(df):
+    # https://stackoverflow.com/a/47544280
+    return df.T.apply(lambda x: x.dropna().to_dict()).tolist()
+
+def full_record(df):
+    return df.to_dict('r')
+
 def cluster_fire(nrt_points, db=None, key=None, eps=None):
     """
     perform clustering using DBSCAN by default
@@ -50,20 +72,12 @@ def cluster_fire(nrt_points, db=None, key=None, eps=None):
 
     db.fit(np.radians(coords))
 
-    labels = db.labels_
-    labels_series = pd.Series(labels)
-    labels_series[db.labels_ == -1] = np.nan
-    nrt_df['cluster'] = labels_series
+    nrt_df = process_labels(nrt_df, db)
+    return partial_record(nrt_df)
 
-    # classifying cluster types
-    dbccol = pd.Series(labels)
-    dbccol[:] = 'edge'
-    dbccol[db.core_sample_indices_] = 'core'
-    dbccol[db.labels_ == -1] = 'noise'
-    nrt_df['dbscan'] = dbccol
-
-    # https://stackoverflow.com/a/47544280
-    return nrt_df.T.apply(lambda x: x.dropna().to_dict()).tolist()
+def drop_noise(nrt_points):
+    nrt_df = pd.DataFrame(nrt_points)
+    return full_record(nrt_df[nrt_df['dbscan'] != 'noise'])
 
 def get_centroid(cluster):
     """ get centroids from group of points """

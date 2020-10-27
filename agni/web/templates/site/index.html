@@ -89,18 +89,20 @@
       <div class="divider"></div>
 
       <div class="section">
-        <span>Prediction Zone</span>
         <form action="#" id="predict-options">
-          <div class="row">
+          <div class="row" id="zone-picker">
+            <label for="zone-picker">Prediction Area<label>
+            <!--
             <p>
               <label>
                 <input id="zone-none" class="with-gap" name="predict-region" type="radio" checked/>
                 <span>None</span>
               </label>
             </p>
+            -->
             <p>
               <label>
-                <input id="zone-roi" class="with-gap" name="predict-region" type="radio"/>
+                <input id="zone-roi" class="with-gap" name="predict-region" type="radio" checked/>
                 <span>Current Region</span>
               </label>
             </p>
@@ -108,17 +110,43 @@
               <label>
                 <input id="zone-rect" class="with-gap" name="predict-region" type="radio"/>
                 <span>Rectangle</span>
+                <!--
+                <div class="right-align">
+                  <a class="waves-effect waves-light btn" id="draw-zone">Draw Zone</a>
+                </div>
+                -->
               </label>
             </p>
-          <div class="right-align">
+          </div>
+
+          <!--
+          <div class="row" id="radius-picker">
+            <label for="radius-picker">Cluster Radius</label>
+            <p>
+              <label>
+                <input value="375" class="with-gap" name="cluster-radius" type="radio"/>
+                <span>375 m</span>
+              </label>
+
+              <label>
+                <input value="500" class="with-gap" name="cluster-radius" type="radio" checked/>
+                <span>500 m</span>
+              </label>
+              <br/>
+              <label>
+                <input value="750" class="with-gap" name="cluster-radius" type="radio" />
+                <span>750 m</span>
+              </label>
+            </p>
+          </div>
+          -->
+
+          <div class="row right-align">
             <a class="waves-effect waves-light btn" id="draw-zone">Draw Zone</a>
             <a class="waves-effect waves-light btn" id="do-predict">Predict</a>
           </div>
-          </div>
         </form>
       </div>
-      
-      <div class="divider"></div>
 
       <span id="hotspot-info"></span>
     </div>

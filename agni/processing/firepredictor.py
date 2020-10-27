@@ -36,9 +36,9 @@ FIRE_KERNEL = np.ones((3, 3))
 #
 
 def bin_firegrid(nrt_points, xkey, ykey, bins, utm=False):
-    """ 
+    """
     perform 2d binning of data points
-    
+
     Args:
         nrt_points (list[dict]):
             raw data points, containing position info
@@ -49,7 +49,7 @@ def bin_firegrid(nrt_points, xkey, ykey, bins, utm=False):
             bin edges for 2d binning, in order of x axis and y axis
         utm (bool):
             set this to True if data given is already in UTM
-    
+
     Returns:
         firegrid (np.array):
             2d numpy array bitmap showing which grid has value
@@ -60,7 +60,9 @@ def bin_firegrid(nrt_points, xkey, ykey, bins, utm=False):
         nrt_df = nrt_points.copy()
     else:
         nrt_df = pd.DataFrame(nrt_points)
-    
+
+    #print(nrt_df['longitude'].head())
+
     xdata = nrt_df[xkey]
     ydata = nrt_df[ykey]
 
@@ -76,15 +78,17 @@ def bin_firegrid(nrt_points, xkey, ykey, bins, utm=False):
 
     return firegrid, edges
 
-def generate_firegrid(nrtpoints, sample_area, step, utm=False):
+def generate_firegrid(nrt_points, area, step, utm=False,
+                      xkey=None, ykey=None):
     """
     generate fire grid from data points over a given area
 
     Args:
-        nrtpoint (list[dict]): 
+        nrt_point (list[dict]): 
             NRT data points
-        sample_area (tuple, tuple):
-            a pair of points represent sampling boundary (topleft/downright?)
+        area (list[4]):
+            a list of bounding box's bottom left and top right coordinates
+            (bl_lon, bl_lat, tr_lon, tr_lat)
         distance (int):
             grid distance in meters, each cell is assumed to be a square
 
@@ -96,15 +100,22 @@ def generate_firegrid(nrtpoints, sample_area, step, utm=False):
             edges of each cell in a grid
     """
 
-    # (lat, lon) to (lon, lat) to (east, north)
-    lonlat_corner = [reversed(c) for c in sample_area]
-    tl, br = UTM47N_TF.transform(lonlat_corner)
+    area_lons = area[0], area[2]
+    area_lats = area[1], area[3]
+    area_x, area_y = UTM47N_TF.transform(area_lons, area_lats)
+    bl = (area_x[0], area_y[0])
+    tr = (area_x[1], area_y[1])
 
-    lons_u = nprange.closed_range(tl[0], br[0], step)
-    lats_u = nprange.closed_range(tl[1], br[1], step)
+    lons_u = nprange.closed_range(bl[0], tr[0], step)
+    lats_u = nprange.closed_range(bl[1], tr[1], step)
+
+    if xkey is None:
+        xkey = 'longitude'
+    if ykey is None:
+        ykey = 'latitude'
 
     firegrid, edges = bin_firegrid(
-        nrt_points, xkey='longitude', ykey='latitude',
+        nrt_points, xkey=xkey, ykey=ykey,
         bins=(lons_u, lats_u), utm=utm
     )
 
@@ -125,15 +136,15 @@ def burnmap_combine(burnmaps):
     return out_map
 
 def firegrid_prepare_input(firemap, burnedmap):
-    """ set up firegrid as input for """
+    """ set up firegrid as input for model step"""
     fg_input = firemap.copy().astype(int)
-    fg_input[burnedmap] = G_EMPTY
+    fg_input = np.where(burnedmap == 1, G_EMPTY, fg_input)
     return fg_input
 
 def firegrid_step(firegrid, kernel=None):
     if kernel is None:
         kernel = FIRE_KERNEL
-    
+
     firemap, burnedmap = firegrid_split(firegrid)
     next_grid = ndimage.binary_dilation(
         firemap, 
@@ -141,9 +152,9 @@ def firegrid_step(firegrid, kernel=None):
         mask=np.bitwise_not(burnedmap),
         border_value=0
     ).astype(int)
-    
-    next_grid[burnedmap] = G_EMPTY
-    next_grid[firemap] = G_EMPTY
+
+    next_grid = np.where(burnedmap == 1, G_EMPTY, next_grid)
+    next_grid = np.where(firemap == 1, G_EMPTY, next_grid)
 
     return next_grid
 
@@ -151,22 +162,19 @@ def firegrid_model_compute(nrt_current, nrt_pasts, area, step, kernel=None):
     kernel = FIRE_KERNEL if kernel is None else kernel
 
     # make map
-    firemap, edges = generate_firegrid(nrt_current, sample_area=area, step=step)
+    firemap, edges = generate_firegrid(nrt_current, area=area, step=step)
 
-    burned_grids = []
-    for points in nrt_pasts:
-        burngrid, _ = generate_firegrid(points, sample_area=area, step=step)
-        burned_grids.append(burngrid)
-    burnmap = burnmap_combine(burned_grids)
+    burnmap, burnedges = generate_firegrid(nrt_pasts, area=area, step=step)
+    #burnmap = burnmap_combine(burned_grids)
 
     # prepare
     fg_input = firegrid_prepare_input(firemap, burnmap)
-
     fg_step = firegrid_step(fg_input)
+    print([firemap.shape, burnmap.shape, fg_input.shape])
 
     return fg_step, edges
 
-def firegrid_geojson(firegrid, edges):
+def firegrid_geojson(firegrid, edges, ignore_trees=False):
     elons = edges[0]
     elats = edges[1]
 
@@ -174,6 +182,8 @@ def firegrid_geojson(firegrid, edges):
     for x in range(len(elons)-1):
         for y in range(len(elats)-1):
             data = firegrid[y, x]
+            if data == G_TREE and ignore_trees:
+                continue
             tl = (elons[x], elats[y])
             tr = (elons[x+1], elats[y])
             bl = (elons[x], elats[y+1])
@@ -188,10 +198,10 @@ def firegrid_geojson(firegrid, edges):
             )
 
             feature_rect = geojson.Feature(
-                geometry=lonlat_rect, properties={'celltype': G_STATE[data]}, 
+                geometry=lonlat_rect, properties={'celltype': G_STATE[data]},
             )
 
             out_rects.append(feature_rect)
-    
+
     out_features = geojson.FeatureCollection(out_rects)
     return out_features

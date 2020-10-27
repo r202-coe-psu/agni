@@ -29,6 +29,32 @@ ROI_STYLE = {
     "fillOpacity": 0.1
 }
 
+CELLSTYLE = {
+    'TREE': {
+        'color': 'green',
+        'fill_color': 'green',
+        'fill_opacity': 0.2,
+        'fill': False,
+        'weight': 1,
+        'stroke': False
+    },
+    'FIRE': {
+        'color': 'red',
+        #'weight': 0.5,
+        'stroke': False,
+        'fill_color': 'red',
+        'fill_opacity': 0.5,
+    },
+    'EMPTY': {
+        'stroke': False,
+        'fill_color': 'black',
+        'opacity': 0.2
+    }
+}
+def get_cell_style(feature):
+    celltype = feature.properties.celltype
+    return CELLSTYLE[celltype]
+
 # set up materialize css stuff
 DP_OPTS = {
     "setDefaultDate": True,
@@ -63,6 +89,7 @@ turf_dated = {}
 clustered_layer = leaflet.LayerGroup.new()
 raw_layer = leaflet.LayerGroup.new()
 roi_layer = leaflet.FeatureGroup.new()
+predict_layer = leaflet.FeatureGroup.new()
 
 viirs_mkl = {}
 modis_mkl = {}
@@ -138,7 +165,7 @@ def draw_roi_jq(resp, status, jqxhr):
     leaflet.geoJSON(resp,{"style":ROI_STYLE}).addTo(roi_layer)
 
 def draw_roi(roi_name, clear=True):
-    if clear:    
+    if clear:
         roi_layer.clearLayers()
     if roi_name != 'all':
         jq.ajax('/regions/{}.geojson'.format(roi_name), {
@@ -220,9 +247,38 @@ def request_predict(ev):
         print(bounds)
     else:
         print('not possible')
+        return
+
+    req_params = {
+        'lag': 3,
+        'area': bounds,
+        'date': document['hotspot-date'].value
+    }
+
+    def req_success(resp):
+        print('success')
+        geojson = javascript.JSON.parse(resp.text)
+        predict_layer.clearLayers()
+        leaflet.geoJSON(
+            geojson, {'style': get_cell_style}
+        ).addTo(predict_layer)
+        predict_layer.addTo(lmap)
+
+    def req_failed(resp):
+        print('dang: {}'.format(resp.status))
+
+    def req_complete(resp):
+        if resp.status == 200:
+            req_success(resp)
+        else:
+            req_failed(resp)
+
+    ajax.get('/predict.geojson', data=req_params, mode='text',
+             oncomplete=req_complete)
 
 lmap.on('editable:drawing:commit', on_draw_rect)
-lmap.on('editable:dragend', on_drag_rect)
+lmap.on('editable:drag', on_drag_rect)
+#lmap.on('editable:vertex:dragend', on_drag_rect)
 
 # turf test
 # only works with VIIRS data point
@@ -493,7 +549,8 @@ leaflet.control.layers(
         "RoI": roi_layer.addTo(lmap),
         "Clustered": clustered_layer.addTo(lmap),
         "Raw": raw_layer.addTo(lmap),
-        "Zone": zone_layer.addTo(lmap)
+        "Zone": zone_layer.addTo(lmap),
+        "Prediction": predict_layer
     }
 ).addTo(lmap)
 lmap.setView([13, 100.8], 6)

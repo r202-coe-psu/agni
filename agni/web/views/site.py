@@ -101,7 +101,12 @@ def lookup_data(datestart, dateend=None, sat_src=None, livedays=None):
             sat_points += result
         return sat_points
 
-    def lookup_db(start, end):
+    def lookup_db(dates):
+        start = min(dates)
+        end = max(dates)
+        if (end - start).days == 0:
+            end += datetime.timedelta(days=1)
+
         influxql_str = """
             select * from "hotspots"
             where "time" >= '{start}'
@@ -139,9 +144,7 @@ def lookup_data(datestart, dateend=None, sat_src=None, livedays=None):
     if len(req_ext) > 0:
         sat_points += lookup_external(req_ext)
     if len(req_db) > 0:
-        mindate = min(lookup_dates)
-        maxdate = max(lookup_dates)
-        sat_points += lookup_db(mindate, maxdate)
+        sat_points += lookup_db(req_db)
     # fetch live first, then try db
 
     return sat_points
@@ -168,7 +171,7 @@ def get_geojson_hotspots():
     sat_src = None
     if requested_source is not None:
         sat_src = requested_source
-    
+
     sat_points = lookup_data(datestart, sat_src=sat_src)
 
     # if RoI filtering is set
@@ -232,6 +235,10 @@ def get_prediction():
     requested_date = queryargs.get('date', type=str)
     lagdays = queryargs.get('lag', type=int)
     bounds = queryargs.get('area', type=str)
+    ignorenoise = queryargs.get('dropnoise', type=str)
+
+    if bounds is None:
+        return '', 400
 
     today = datetime.datetime.today()
     datestart = today
@@ -246,8 +253,25 @@ def get_prediction():
         lagdays = 1
 
     start  = datestart - datetime.timedelta(days=lagdays)
-    end = datestart
+    end = datestart - datetime.timedelta(days=1)
     sat_src = None
-    sat_points = lookup_data(start, end, sat_src=sat_src)
 
-    return jsonify(sat_points)
+    prev_sat_points = lookup_data(start, end, sat_src=sat_src)
+    current_sat_points = lookup_data(datestart, sat_src=sat_src)
+
+    area = [float(n) for n in bounds.split(',')]
+
+    prev_data = firecluster.cluster_fire(prev_sat_points)
+    #prev_data = filtering.filter_bbox(prev_data, area)
+
+    current_data = firecluster.cluster_fire(current_sat_points)
+    if ignorenoise == 'yes':
+        current_data = firecluster.drop_noise(current_data)
+    #current_data = filtering.filter_bbox(current_data, area)
+
+    predict_result = firepredictor.firegrid_model_compute(
+        current_data, prev_data, area, 375
+    )
+    result_geojson = firepredictor.firegrid_geojson(*predict_result)
+
+    return jsonify(result_geojson)
