@@ -93,31 +93,57 @@ def get_all_hotspots():
 def lookup_data(datestart, dateend=None, sat_src=None, livedays=None):
     sat_src = 'viirs' if sat_src is None else sat_src
     livedays = 60 if livedays is None else livedays
-    # fetch live first, then try db
-    if TODAY - datestart <= datetime.timedelta(days=livedays):
-        result = fetch_hotspots[sat_src](datestart)
-        sat_points = result
-    else:
-        if dateend is not None:
-            dateplus = dateend
-        else:
-            dateplus = datestart + datetime.timedelta(days=1)
-        
-        params = {
-            "date": datestart.strftime("%Y-%m-%d"),
-            "dateplus": dateplus.strftime('%Y-%m-%d')
-        }
-        # OH MAN I AM NOT GOOD WITH PARAMS PLZ TO HELP
+
+    def lookup_external(dates):
+        sat_points = []
+        for date in dates:
+            result = fetch_hotspots[sat_src](date)
+            sat_points += result
+        return sat_points
+
+    def lookup_db(start, end):
         influxql_str = """
             select * from "hotspots"
-            where "time" >= '{date}'
-                and time < '{dateplus}';
-        """.format(**params)
+            where "time" >= '{start}'
+                and time < '{end}';
+        """.format(start=start, end=end)
         result = influxdb.query(influxql_str,
                                 epoch='u',
                                 database=INFLUX_BUCKET)
         sat_points = list(result.get_points())
-    
+        return sat_points
+
+    # find requested date range for target
+
+    if dateend is None:
+        datedelta = 1
+    else:
+        datedelta = (dateend - datestart).days
+    lookup_dates = [
+        datestart + datetime.timedelta(days=n)
+        for n in range(datedelta)
+    ]
+    print(lookup_dates)
+
+    req_ext = []
+    req_db = []
+    for date in lookup_dates:
+        if TODAY - date <= datetime.timedelta(days=livedays):
+            req_ext.append(date)
+        else:
+            req_db.append(date)
+    print([req_ext, req_db])
+
+    sat_points = []
+
+    if len(req_ext) > 0:
+        sat_points += lookup_external(req_ext)
+    if len(req_db) > 0:
+        mindate = min(lookup_dates)
+        maxdate = max(lookup_dates)
+        sat_points += lookup_db(mindate, maxdate)
+    # fetch live first, then try db
+
     return sat_points
 
 @module.route('/hotspots.geojson')
@@ -179,7 +205,7 @@ def get_clustered_hotspots():
         except ValueError:
             datestart = today
     target_julian = datestart.strftime('%Y%j')
-    
+
     sat_src = None
     sat_points = lookup_data(datestart, sat_src=sat_src)
 
@@ -198,3 +224,30 @@ def get_clustered_hotspots():
         return jsonify(sat_geojson)
     else:
         return '', 204
+
+@module.route('/predict.geojson')
+def get_prediction():
+    queryargs = request.args
+
+    requested_date = queryargs.get('date', type=str)
+    lagdays = queryargs.get('lag', type=int)
+    bounds = queryargs.get('area', type=str)
+
+    today = datetime.datetime.today()
+    datestart = today
+    if requested_date is not None:
+        try:
+            datestart = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
+        except ValueError:
+            datestart = today
+    target_julian = datestart.strftime('%Y%j')
+
+    if lagdays is None:
+        lagdays = 1
+
+    start  = datestart - datetime.timedelta(days=lagdays)
+    end = datestart
+    sat_src = None
+    sat_points = lookup_data(start, end, sat_src=sat_src)
+
+    return jsonify(sat_points)

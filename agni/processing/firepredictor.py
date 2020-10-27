@@ -76,7 +76,7 @@ def bin_firegrid(nrt_points, xkey, ykey, bins, utm=False):
 
     return firegrid, edges
 
-def generate_firegrid(nrtpoints, sample_area, step):
+def generate_firegrid(nrtpoints, sample_area, step, utm=False):
     """
     generate fire grid from data points over a given area
 
@@ -137,7 +137,7 @@ def firegrid_step(firegrid, kernel=None):
     firemap, burnedmap = firegrid_split(firegrid)
     next_grid = ndimage.binary_dilation(
         firemap, 
-        structure=fire_kernel, 
+        structure=kernel, 
         mask=np.bitwise_not(burnedmap),
         border_value=0
     ).astype(int)
