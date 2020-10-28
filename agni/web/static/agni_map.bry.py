@@ -12,11 +12,12 @@ _jsdate_today = javascript.Date.new()
 BASE_MARKER_OPTS = {
     "stroke": False,
     "radius": 5,
-    "color": 'orange'
+    "color": 'orange',
+    "fillOpacity": 0.2
 }
 
 DBSCAN_MARKER_OPTS = {
-    "core": dict(BASE_MARKER_OPTS, color="red", opacity=0.3),
+    "core": dict(BASE_MARKER_OPTS, color="red", fillOpacity=0.5),
     "edge": dict(BASE_MARKER_OPTS, color="red"),
     "noise": dict(BASE_MARKER_OPTS, color="orange"),
 }
@@ -26,14 +27,15 @@ ROI_STYLE = {
     "color": '#33aa33',
     "opacity": 0.8,
     "fillColor": '#33aa33',
-    "fillOpacity": 0.1
+    "fillOpacity": 0.1,
+    "weight": 2
 }
 
 CELLSTYLE = {
     'TREE': {
         'color': 'green',
-        'fill_color': 'green',
-        'fill_opacity': 0.2,
+        'fillColor': 'green',
+        'fillOpacity': 0.2,
         'fill': False,
         'weight': 1,
         'stroke': False
@@ -42,18 +44,23 @@ CELLSTYLE = {
         'color': 'red',
         #'weight': 0.5,
         'stroke': False,
-        'fill_color': 'red',
-        'fill_opacity': 0.5,
+        'fillColor': 'red',
+        'fillOpacity': 0.3,
     },
     'EMPTY': {
         'stroke': False,
-        'fill_color': 'black',
-        'opacity': 0.2
+        'fillColor': 'black',
+        'fillOpacity': 0.3
     }
 }
 def get_cell_style(feature):
     celltype = feature.properties.celltype
     return CELLSTYLE[celltype]
+
+ZONE_SELECT_STYLE = {
+    'weight': 2,
+    'fillOpacity': 0.05
+}
 
 # set up materialize css stuff
 DP_OPTS = {
@@ -104,6 +111,12 @@ fetch_satellite = {
     "viirs" : True
 }
 
+def toast(html_text, **toastopts):
+    opts = {
+        'html': html_text,
+        'displayLength': 2000
+    }
+    return mcss.Toast.new(dict(opts, **toastopts))
 
 def query_ajax(target=None):
     """ send request to server using ajaxmarker_layer
@@ -150,8 +163,9 @@ def change_or_query(target=None):
         query_ajax_cluster(target_str)
 
 def enable_input(state=True):
-    document['hotspot-date-offset'].disabled = not state
-    document['hotspot-date'].disabled = not state
+    pass
+    #document['hotspot-date-offset'].disabled = not state
+    #document['hotspot-date'].disabled = not state
 
 def date_from_offset(offset, maxdelta=60):
     # maxdelta of 60 since live NRT data is stored 
@@ -199,7 +213,7 @@ def map_options_changed(ev):
         roi_name = ev.target.value
         draw_roi(roi_name)
 
-predict_zone = 'zone-none'
+predict_zone = 'zone-roi'
 zone_layer = leaflet.LayerGroup.new()
 zone_rect = None
 zone_bounds = None
@@ -214,14 +228,16 @@ zone_layer.on('dbclick', dumpbounds)
 def predict_options_changed(ev):
     global predict_zone
     src = ev.target.id
-    predict_zone = src
-    window.predict_zone = predict_zone
+    if 'zone' in src:
+        predict_zone = src
+        window.predict_zone = predict_zone
 
 @bind('#draw-zone', 'click')
 def draw_zone_rect(ev):
     global zone_rect
     zone_layer.clearLayers()
     zone_rect = lmap.editTools.startRectangle()
+    zone_rect.setStyle(ZONE_SELECT_STYLE)
     zone_rect.addTo(zone_layer)
 
 def on_draw_rect(ev):
@@ -243,17 +259,25 @@ def request_predict(ev):
         bounds = zone_bounds
         print(bounds)
     elif predict_zone == 'zone-roi' and roi_name != 'all':
-        bounds = roi_layer.getBounds().toBBoxString()
+        b = roi_layer.getBounds()
+        bounds = b.toBBoxString()
         print(bounds)
+        zone_layer.clearLayers()
+        z = leaflet.Rectangle.new(b).setStyle(ZONE_SELECT_STYLE)
+        z.addTo(zone_layer).addTo(lmap)
     else:
         print('not possible')
         return
 
+    noise = document["ignore-noise"].checked
+
     req_params = {
         'lag': 3,
         'area': bounds,
-        'date': document['hotspot-date'].value
+        'date': document['hotspot-date'].value,
+        'dropnoise': noise
     }
+    print(req_params)
 
     def req_success(resp):
         print('success')
@@ -369,6 +393,7 @@ def query_succes(resp, status, jqxhr):
         cluster_data(resp, status, jqxhr)
     elif jqxhr.status == 204:
         document['hotspot-info'].text = 'No data'
+        toast('<i class="material-icons">info</i>No data')
         enable_input(True)
 
 def query_ajax_cluster(target=None):
@@ -514,6 +539,7 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
         date_jul = resp_data['date_jul']
     else:
         document['hotspot-info'].text = 'Error retrieving hotspots'
+        toast('<i class="material-icon>error</i>Error retrieving hotspots')
         enable_input(True)
 
     global fetch_in_progress

@@ -240,6 +240,9 @@ def get_prediction():
     if bounds is None:
         return '', 400
 
+    if ignorenoise is None:
+        ignorenoise = 'false'
+
     today = datetime.datetime.today()
     datestart = today
     if requested_date is not None:
@@ -265,7 +268,7 @@ def get_prediction():
     #prev_data = filtering.filter_bbox(prev_data, area)
 
     current_data = firecluster.cluster_fire(current_sat_points)
-    if ignorenoise == 'yes':
+    if ignorenoise.casefold() == 'true':
         current_data = firecluster.drop_noise(current_data)
     #current_data = filtering.filter_bbox(current_data, area)
 

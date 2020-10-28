@@ -65,8 +65,8 @@ def bin_firegrid(nrt_points, xkey, ykey, bins, utm=False):
         xdata = nrt_df[xkey]
         ydata = nrt_df[ykey]
     except KeyError:
-        xdata = np.zeros(1)
-        ydata = np.zeros(1)
+        xdata = pd.Series([0])
+        ydata = pd.Series([0])
 
     # convert to UTM as necessary
     if not utm:
