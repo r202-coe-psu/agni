@@ -11,3 +11,4 @@ geojson
 utm
 Flask-InfluxDB
 pyproj
+importlib-resources
