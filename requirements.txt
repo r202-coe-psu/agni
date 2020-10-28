@@ -12,3 +12,4 @@ utm
 Flask-InfluxDB
 pyproj
 importlib-resources
+scikit-learn
