@@ -13,3 +13,4 @@ Flask-InfluxDB
 pyproj
 importlib-resources
 scikit-learn
+pandas
