@@ -47,7 +47,7 @@ def bin_firegrid(nrt_points, xkey, ykey, bins, utm=False):
             e.g. xkey='longitude', ykey='latitude'
         bins (tuple[np.array]):
             bin edges for 2d binning, in order of x axis and y axis
-        utm (bool):
+        utm (bool) [optional]:
             set this to True if data given is already in UTM
 
     Returns:
@@ -56,15 +56,17 @@ def bin_firegrid(nrt_points, xkey, ykey, bins, utm=False):
         edges (tuple[np.array]):
             bin edges along (x axis, y axis)
     """
-    if isinstance(nrt_points, pd.DataFrame):
-        nrt_df = nrt_points.copy()
-    else:
-        nrt_df = pd.DataFrame(nrt_points)
+    nrt_df = pd.DataFrame(nrt_points, copy=True)
 
-    #print(nrt_df['longitude'].head())
-
-    xdata = nrt_df[xkey]
-    ydata = nrt_df[ykey]
+    # supplied dummy data to get histogram2d to function
+    # no data -> no fire; still need that empty grid with its edges
+    
+    try:
+        xdata = nrt_df[xkey]
+        ydata = nrt_df[ykey]
+    except KeyError:
+        xdata = np.zeros(1)
+        ydata = np.zeros(1)
 
     # convert to UTM as necessary
     if not utm:
@@ -100,6 +102,9 @@ def generate_firegrid(nrt_points, area, step, utm=False,
             edges of each cell in a grid
     """
 
+    # formatting coordinates
+    # leaflet .ToBBoxString() gives out coordinates in 
+    # southwest,northeast corner, lon,lat format, as flat list
     area_lons = area[0], area[2]
     area_lats = area[1], area[3]
     area_x, area_y = UTM47N_TF.transform(area_lons, area_lats)
@@ -127,6 +132,10 @@ def firegrid_split(firegrid):
     burnedmap = firegrid == G_EMPTY
     return firemap, burnedmap
 
+def firegrid_combine(basemap, overlaymap, value):
+    firegrid = np.where(overlaymap == 1, value, basemap)
+    return firegrid
+
 def burnmap_combine(burnmaps):
     """ combining multiple burnmaps into one burnmap """
     _shape = min(b.shape for b in burnmaps)
@@ -138,6 +147,7 @@ def burnmap_combine(burnmaps):
 def firegrid_prepare_input(firemap, burnedmap):
     """ set up firegrid as input for model step"""
     fg_input = firemap.copy().astype(int)
+    # try to avoid broadcasting else weird cell shows up
     fg_input = np.where(burnedmap == 1, G_EMPTY, fg_input)
     return fg_input
 
@@ -145,6 +155,7 @@ def firegrid_step(firegrid, kernel=None):
     if kernel is None:
         kernel = FIRE_KERNEL
 
+    # expands fire to not burned areas
     firemap, burnedmap = firegrid_split(firegrid)
     next_grid = ndimage.binary_dilation(
         firemap, 
@@ -153,24 +164,25 @@ def firegrid_step(firegrid, kernel=None):
         border_value=0
     ).astype(int)
 
-    next_grid = np.where(burnedmap == 1, G_EMPTY, next_grid)
-    next_grid = np.where(firemap == 1, G_EMPTY, next_grid)
+    # mark current fire point as burned area
+    burnedmap_all = firemap | burnedmap
+    next_grid = firegrid_combine(next_grid, burnedmap_all, G_EMPTY)
 
     return next_grid
 
 def firegrid_model_compute(nrt_current, nrt_pasts, area, step, kernel=None):
-    kernel = FIRE_KERNEL if kernel is None else kernel
+    if kernel is None:
+        kernel = FIRE_KERNEL
 
     # make map
+    # assumes nrt_(current|pasts) is flat list of data points
     firemap, edges = generate_firegrid(nrt_current, area=area, step=step)
-
     burnmap, burnedges = generate_firegrid(nrt_pasts, area=area, step=step)
-    #burnmap = burnmap_combine(burned_grids)
 
     # prepare
     fg_input = firegrid_prepare_input(firemap, burnmap)
     fg_step = firegrid_step(fg_input)
-    print([firemap.shape, burnmap.shape, fg_input.shape])
+    #print([firemap.shape, burnmap.shape, fg_input.shape])
 
     return fg_step, edges
 

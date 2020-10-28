@@ -269,9 +269,9 @@ def get_prediction():
         current_data = firecluster.drop_noise(current_data)
     #current_data = filtering.filter_bbox(current_data, area)
 
-    predict_result = firepredictor.firegrid_model_compute(
+    p_grid, p_edges = firepredictor.firegrid_model_compute(
         current_data, prev_data, area, 375
     )
-    result_geojson = firepredictor.firegrid_geojson(*predict_result)
+    result_geojson = firepredictor.firegrid_geojson(p_grid, p_edges)
 
     return jsonify(result_geojson)

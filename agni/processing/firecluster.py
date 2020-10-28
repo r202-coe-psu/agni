@@ -62,6 +62,10 @@ def cluster_fire(nrt_points, db=None, key=None, eps=None):
     # prepare data
     nrt_df = pd.DataFrame(nrt_points)
     key = COORDS_KEY if key is None else key
+    # early bail out if there's no data to be clustered
+    if  len(nrt_df) == 0:
+        return []
+
     coords = nrt_df[key].to_numpy()
 
     # do clustering using dbscan
