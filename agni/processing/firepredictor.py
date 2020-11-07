@@ -187,8 +187,12 @@ def firegrid_model_compute(nrt_current, nrt_pasts, area, step, kernel=None):
     return fg_step, edges
 
 def firegrid_geojson(firegrid, edges, ignore_trees=False):
-    elons = edges[0]
-    elats = edges[1]
+    try:
+        elons = edges[0].tolist()
+        elats = edges[1].tolist()
+    except AttributeError:
+        elons = edges[0]
+        elats = edges[1]
 
     out_rects = []
     for x in range(len(elons)-1):
