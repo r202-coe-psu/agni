@@ -60,7 +60,7 @@ def bin_firegrid(nrt_points, xkey, ykey, bins, utm=False):
 
     # supplied dummy data to get histogram2d to function
     # no data -> no fire; still need that empty grid with its edges
-    
+
     try:
         xdata = nrt_df[xkey]
         ydata = nrt_df[ykey]
@@ -148,7 +148,7 @@ def firegrid_prepare_input(firemap, burnedmap):
     """ set up firegrid as input for model step"""
     fg_input = firemap.copy().astype(int)
     # try to avoid broadcasting else weird cell shows up
-    fg_input = np.where(burnedmap == 1, G_EMPTY, fg_input)
+    fg_input = firegrid_combine(firemap, burnedmap, G_EMPTY)
     return fg_input
 
 def firegrid_step(firegrid, kernel=None):

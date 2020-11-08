@@ -97,24 +97,25 @@ def find_cluster_centroids(
     find cluster centroids from given clustered data
     the input data MUST be clustered beforehand
     """
-    nrt_df = pd.DataFrame(clustered_data)
 
-    labels_key = CLUSTER_KEY if labels_key is None else labels_key
-    coords_key = COORDS_KEY if coords_key is None else coords_key
-    noise_label = -1 if noise_label is None else noise_label
+    cluster_df = drop_noise(clustered_data)
+    nrt_df = pd.DataFrame(cluster_df, copy=True)
+
+    if labels_key is None: labels_key = CLUSTER_KEY
+    if coords_key is None: coords_key = COORDS_KEY
+    if noise_label is None: noise_label = -1
 
     if labels_key not in nrt_df.columns:
         raise KeyError("Invalid cluster key")
-    
+
     cluster_labels = nrt_df[labels_key]
     coords = nrt_df[coords_key].to_numpy()
 
-    noise_exist = (1 if noise_label in cluster_labels else 0)
-    num_clusters = len(set(cluster_labels)) - noise_exist
-    
+    available_clusters = list(set(cluster_labels))
+
     clusters = pd.Series([
         coords[cluster_labels == n] 
-        for n in range(num_clusters)
+        for n in available_clusters
     ])
 
     centroids = clusters.map(get_centroid)
@@ -125,4 +126,4 @@ def find_cluster_centroids(
         'count': c_count
     })
 
-    return rs.to_dict()
+    return full_record(rs)
