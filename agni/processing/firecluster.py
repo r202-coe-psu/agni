@@ -40,7 +40,7 @@ def partial_record(df):
     return df.T.apply(lambda x: x.dropna().to_dict()).tolist()
 
 def full_record(df):
-    return df.to_dict('r')
+    return df.to_dict('records')
 
 def cluster_fire(nrt_points, db=None, key=None, eps=None):
     """
