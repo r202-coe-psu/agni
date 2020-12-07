@@ -252,6 +252,8 @@ def on_drag_rect(ev):
     bounds = ev.layer.getBounds().toBBoxString()
     zone_bounds = bounds
 
+from urllib.parse import urlencode
+
 @bind('#do-predict', 'click')
 def request_predict(ev):
     print(predict_zone)
@@ -279,8 +281,11 @@ def request_predict(ev):
     }
     print(req_params)
 
+    print(type(req_params))
+
     def req_success(resp):
         print('success')
+        print(resp.text)
         geojson = javascript.JSON.parse(resp.text)
         predict_layer.clearLayers()
         leaflet.geoJSON(
@@ -297,7 +302,12 @@ def request_predict(ev):
         else:
             req_failed(resp)
 
-    ajax.get('/predict.geojson', data=req_params, mode='text',
+    req_encode = urlencode(req_params)
+    print(req_encode)
+
+    # FIXME: botched ajax calls more than one ways (data encode, empty response?)
+    # move back to jquery ? 
+    ajax.get('/predict.geojson?{}'.format(req_encode), mode='text',
              oncomplete=req_complete)
 
 lmap.on('editable:drawing:commit', on_draw_rect)
