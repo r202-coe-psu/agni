@@ -1,7 +1,8 @@
 from flask import g, config, session, redirect, url_for
 from flask_login import current_user, login_user
 # from authlib.integrations.flask_client import OAuth
-from authlib.flask.client import OAuth
+#from authlib.flask.client import OAuth
+from authlib.integrations.flask_client import OAuth
 import loginpass
 
 from . import models
@@ -122,7 +123,7 @@ def init_oauth(app):
     # oauth2_client.register('google')
 
     google_bp = loginpass.create_flask_blueprint(
-            loginpass.Google,
-            oauth2_client,
-            handle_authorize_google)
+            backends=[loginpass.Google],
+            oauth=oauth2_client,
+            handle_authorize=handle_authorize_google)
     app.register_blueprint(google_bp, url_prefix='/google')
