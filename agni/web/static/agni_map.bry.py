@@ -281,34 +281,29 @@ def request_predict(ev):
     }
     print(req_params)
 
-    print(type(req_params))
-
-    def req_success(resp):
-        print('success')
-        print(resp.text)
-        geojson = javascript.JSON.parse(resp.text)
+    def draw_prediction(geojson):
         predict_layer.clearLayers()
         leaflet.geoJSON(
             geojson, {'style': get_cell_style}
         ).addTo(predict_layer)
         predict_layer.addTo(lmap)
 
-    def req_failed(resp):
-        print('dang: {}'.format(resp.status))
+    def req_success(resp, status, jqxhr):
+        if jqxhr.status == 200:
+            draw_prediction(resp)
+        elif jqxhr.status == 204:
+            toast("Prediction: empty results.")
 
-    def req_complete(resp):
-        if resp.status == 200:
-            req_success(resp)
-        else:
-            req_failed(resp)
+    def req_error(jqxhr, jq_error, text_error):
+        toast("Predict: Error '{}': {}".format(jq_error, text_error))
 
-    req_encode = urlencode(req_params)
-    print(req_encode)
+    jq.ajax('/predict.geojson', {
+        "dataType": "json",
+        "data": req_params,
+        "success": req_success,
+        "error": req_error
+    })
 
-    # FIXME: botched ajax calls more than one ways (data encode, empty response?)
-    # move back to jquery ? 
-    ajax.get('/predict.geojson?{}'.format(req_encode), mode='text',
-             oncomplete=req_complete)
 
 lmap.on('editable:drawing:commit', on_draw_rect)
 lmap.on('editable:drag', on_drag_rect)
@@ -394,7 +389,8 @@ def cluster_data(resp, status, jqxhr):
     enable_input(True)
 
 def query_error(jqxhr, errortype, text):
-    document['hotspot-info'].text = "E{}: {}".format(jqxhr.status, text)
+    #document['hotspot-info'].text = "E{}: {}".format(jqxhr.status, text)
+    toast("Error {}: {}".format(jqxhr.status, text))
     enable_input(True)
 
 def query_succes(resp, status, jqxhr):
@@ -402,7 +398,8 @@ def query_succes(resp, status, jqxhr):
         document['hotspot-info'].text = ''
         cluster_data(resp, status, jqxhr)
     elif jqxhr.status == 204:
-        document['hotspot-info'].text = 'No data'
+        #document['hotspot-info'].text = 'No data'
+        toast("Query: No Data")
         toast('<i class="material-icons">info</i>No data')
         enable_input(True)
 
@@ -548,7 +545,8 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
         data = resp_data
         date_jul = resp_data['date_jul']
     else:
-        document['hotspot-info'].text = 'Error retrieving hotspots'
+        #document['hotspot-info'].text = 'Error retrieving hotspots'
+        toast('Error retrieving hotspots')
         toast('<i class="material-icon>error</i>Error retrieving hotspots')
         enable_input(True)
 
