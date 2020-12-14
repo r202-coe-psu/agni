@@ -111,11 +111,17 @@ fetch_satellite = {
     "viirs" : True
 }
 
-def toast(html_text, **toastopts):
+def toast(text, icon=None, **toastopts):
+    if icon is not None:
+        html_icon = '<i class="material-icons">{icon}</i>'.format(icon=icon)
+
+    html_text = '{}<span>{}</span>'.format(html_icon, text)
     opts = {
         'html': html_text,
-        'displayLength': 2000
+        'displayLength': 3000,
+        'classes': 'toast-text'
     }
+
     return mcss.Toast.new(dict(opts, **toastopts))
 
 def query_ajax(target=None):
@@ -292,10 +298,11 @@ def request_predict(ev):
         if jqxhr.status == 200:
             draw_prediction(resp)
         elif jqxhr.status == 204:
-            toast("Prediction: empty results.")
+            toast("Prediction: empty results.", icon='info')
 
     def req_error(jqxhr, jq_error, text_error):
-        toast("Predict: Error '{}': {}".format(jq_error, text_error))
+        toast("Predict: Error '{}': {}".format(jq_error, text_error),
+              icon='error')
 
     jq.ajax('/predict.geojson', {
         "dataType": "json",
@@ -399,8 +406,7 @@ def query_succes(resp, status, jqxhr):
         cluster_data(resp, status, jqxhr)
     elif jqxhr.status == 204:
         #document['hotspot-info'].text = 'No data'
-        toast("Query: No Data")
-        toast('<i class="material-icons">info</i>No data')
+        toast('No data', icon='info')
         enable_input(True)
 
 def query_ajax_cluster(target=None):
@@ -546,8 +552,7 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
         date_jul = resp_data['date_jul']
     else:
         #document['hotspot-info'].text = 'Error retrieving hotspots'
-        toast('Error retrieving hotspots')
-        toast('<i class="material-icon>error</i>Error retrieving hotspots')
+        toast('Error retrieving hotspots', icon='error')
         enable_input(True)
 
     global fetch_in_progress
