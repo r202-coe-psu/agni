@@ -77,6 +77,9 @@ dp_instances = mcss.Datepicker.init(dp_elems, DP_OPTS)
 sel_elems = document.querySelectorAll('.select')
 sel_instances = mcss.FormSelect.init(sel_elems)
 
+tab_elems = document.querySelectorAll('.tabs')
+tab_instances = mcss.Tabs.init(tab_elems)
+
 lmap = leaflet.map("mapdisplay", {
     "preferCanvas": True,
     "doubleClickZoom": False,

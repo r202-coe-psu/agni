@@ -295,7 +295,7 @@ def region_histogram(region, year, month=None):
         last_day = calendar.monthrange(year, month)[1]
         end = datetime.date(year, month, last_day) + datetime.timedelta(days=1)
 
-    # get region name from geojson
+    # get region bbox for faster processing, no db yet
     roi_str = pkg_res.read_text(regions, "{}.geojson".format(region))
     roi_geojson = geojson.loads(roi_str)
     roi_shape = shapely.geometry.shape(
@@ -313,7 +313,7 @@ def region_histogram(region, year, month=None):
         bbox=roi_bbox
     )
     ql_result = influxdb.query(influxql_str,
-                            #epoch='u',
+                            epoch='u',
                             database=INFLUX_BUCKET)
     data = list(ql_result.get_points())
 

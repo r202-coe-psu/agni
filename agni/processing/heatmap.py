@@ -115,3 +115,10 @@ class NRTHeatmap:
     #__geo_interface__ = {
         # return geojson-like for rendering
     #}
+
+def loads(hmap_gj: dict):
+    """ UNIMPLEMENTED: reconstruct hmap from serialized hmap geojson """
+    pass
+
+def dumps(hmap: NRTHeatmap):
+    return hmap.repr_geojson()
