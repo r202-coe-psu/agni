@@ -5,19 +5,24 @@ import pathlib
 import json
 import csv
 import datetime
+import calendar
 
 import geojson
 import requests
+import shapely
+import shapely.geometry
 
 try:
     import importlib.resources as pkg_res
 except ImportError:
     import importlib_resources as pkg_res
 
+import pandas as pd
+
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv
 from agni.models import influxdb
-from agni.processing import firecluster, firepredictor
+from agni.processing import firecluster, firepredictor, heatmap
 from agni.web import regions
 
 module = Blueprint('site', __name__)
@@ -278,3 +283,41 @@ def get_prediction():
     result_geojson = firepredictor.firegrid_geojson(p_grid, p_edges)
 
     return jsonify(result_geojson)
+
+@module.route('/history/<region>/<int:year>')
+@module.route('/history/<region>/<int:year>/<int:month>')
+def region_histogram(region, year, month=None):
+    if month is None:
+        start = datetime.date(year, 1, 1)
+        end = datetime.date(year+1, 1, 1)
+    else:
+        start = datetime.date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        end = datetime.date(year, month, last_day) + datetime.timedelta(days=1)
+
+    # get region name from geojson
+    roi_str = pkg_res.read_text(regions, "{}.geojson".format(region))
+    roi_geojson = geojson.loads(roi_str)
+    roi_shape = shapely.geometry.shape(
+        roi_geojson.features[0].geometry
+    ).buffer(0)
+    roi_bbox = roi_shape.bounds
+
+    influxql_str = """
+        select * from "hotspots"
+        where time >= '{start}' and time < '{end}'
+            and longitude >= {bbox[0]} and longitude < {bbox[2]}
+            and latitude >= {bbox[1]} and latitude < {bbox[3]};
+    """.format(
+        start=start, end=end,
+        bbox=roi_bbox
+    )
+    ql_result = influxdb.query(influxql_str,
+                            #epoch='u',
+                            database=INFLUX_BUCKET)
+    data = list(ql_result.get_points())
+
+    hmap = heatmap.NRTHeatmap(step=375, bounds=roi_bbox)
+    hmap.fit(data, 'longitude', 'latitude')
+
+    return hmap.repr_geojson(keep_zero=False)
