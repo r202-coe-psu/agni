@@ -170,8 +170,6 @@ def get_geojson_hotspots():
         except ValueError:
             datestart = today
     target_julian = datestart.strftime('%Y%j')
-    # in practice, we does query on db and return data
-    # probably
 
     sat_src = None
     if requested_source is not None:
