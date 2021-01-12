@@ -58,13 +58,7 @@ class NRTHeatmap:
         bounds = [float(n) for n in boundstr.split(',')]
         self.set_bounds(bounds)
 
-    def fit(self, data, xkey, ykey):
-        """ fit data to make grid """
-        if self.bounds is None:
-            raise ValueError("bounding area unset")
-
-        data = pd.DataFrame(data, copy=True)
-        self.map_data = data
+    def _prepare_data(self, data, xkey, ykey):
         try:
             xdata = data[xkey]
             ydata = data[ykey]
@@ -72,9 +66,40 @@ class NRTHeatmap:
             xdata = pd.Series([0])
             ydata = pd.Series([0])
         xdata, ydata = self.UTM_TF.transform(xdata.to_list(), ydata.to_list())
+        return xdata, ydata
 
+    def fit(self, data, xkey, ykey):
+        """ fit data to make grid """
+        if self.bounds is None:
+            raise ValueError("bounding area unset")
+
+        data_ = pd.DataFrame(data)
+        
+        xdata, ydata = self._prepare_data(data_, xkey=xkey, ykey=ykey)
         count, xedge, yedge = np.histogram2d(x=xdata, y=ydata, bins=self.edges)
         self.grid = (count.T).astype(int)
+
+    def _create_cell_rect(self, x, y):
+        elons = self.edges[0]
+        elats = self.edges[1]
+
+        west, east = elons[x:x+1]
+        bottom, top = elats[y:y+1]
+
+        tl = (west, top)
+        tr = (east, top)
+        bl = (west, bottom)
+        br = (east, bottom)
+
+        poly = [tl, bl, br, tr, tl]
+        rect = geojson.Polygon([poly])
+
+        lonlat_rect = geojson.utils.map_tuples(
+            lambda c: self.GPS_TF.transform(*c),
+            rect
+        )
+
+        return lonlat_rect
 
     def repr_geojson(self, keep_zero=True):
         elons = self.edges[0]
@@ -86,28 +111,18 @@ class NRTHeatmap:
                 data = int(self.grid[y, x])
                 if not keep_zero and data == 0:
                     continue
-                tl = (elons[x], elats[y])
-                tr = (elons[x+1], elats[y])
-                bl = (elons[x], elats[y+1])
-                br = (elons[x+1], elats[y+1])
 
-                # draw rectangle
-                poly = [tl, bl, br, tr, tl] # manually draw rect, ccw per spec
-                rect = geojson.Polygon([poly])
-                lonlat_rect = geojson.utils.map_tuples(
-                    lambda c: self.GPS_TF.transform(*c),
-                    rect
-                )
+                rect = self._create_cell_rect(x, y)
 
-                feature_rect = geojson.Feature(
-                    geometry=lonlat_rect,
+                feature = geojson.Feature(
+                    geometry=rect,
                     properties={
                         'count': data,
                         'grid_index': [y, x]
                     },
                 )
 
-                out_rects.append(feature_rect)
+                out_rects.append(feature)
 
         out_features = geojson.FeatureCollection(out_rects)
         return out_features
