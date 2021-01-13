@@ -83,8 +83,8 @@ class NRTHeatmap:
         elons = self.edges[0]
         elats = self.edges[1]
 
-        west, east = elons[x:x+1]
-        bottom, top = elats[y:y+1]
+        west, east = elons[x:x+2]
+        bottom, top = elats[y:y+2]
 
         tl = (west, top)
         tr = (east, top)
@@ -125,6 +125,10 @@ class NRTHeatmap:
                 out_rects.append(feature)
 
         out_features = geojson.FeatureCollection(out_rects)
+        out_features['info'] = {
+            'max_count': int(self.grid.max()),
+            'shape': list(self.grid.shape)
+        }
         return out_features
 
     #__geo_interface__ = {
