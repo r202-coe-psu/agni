@@ -100,6 +100,7 @@ clustered_layer = leaflet.LayerGroup.new()
 raw_layer = leaflet.LayerGroup.new()
 roi_layer = leaflet.FeatureGroup.new()
 predict_layer = leaflet.FeatureGroup.new()
+history_layer = leaflet.FeatureGroup.new()
 
 viirs_mkl = {}
 modis_mkl = {}
@@ -227,6 +228,21 @@ def map_options_changed(ev):
         document['hotspot-date-offset'].value = max(0, 60-new_offset.days)
         target = date_cal
 
+def switch_subopts(mode):
+    subopts = document.select('.subopts-mode')
+    #print(subopts)
+    for subopt in subopts:
+        if subopt.id == 'hist-mode-{}'.format(mode):
+            subopt.hidden = False
+        else:
+            subopt.hidden = True
+
+
+@bind('#history-options', 'change')
+def history_options_changed(ev):
+    if ev.target.attrs.get('name', None) == 'histmode':
+        value = document['history-options'].histmode.value
+        switch_subopts(mode=value)
 
 predict_zone = 'zone-roi'
 zone_layer = leaflet.LayerGroup.new()
@@ -319,6 +335,63 @@ def request_predict(ev):
         "success": req_success,
         "error": req_error
     })
+
+@bind('#do-history', 'click')
+def show_history(ev):
+    if roi_name == 'all':
+        toast(text="Must pick a region", icon="error")
+        return
+
+    year = int(document['target-year'].value)
+    lags_input = document['lag-years']
+    if 'invalid' in lags_input.class_name:
+        toast(text="Offset must be higher than zero.", icon='error')
+        return
+    try:
+        lags = int(lags_input.value)
+    except ValueError:
+        lags = 0
+
+    def histogram_cell_style(feature, max_count, lower=None, upper=None):
+        count = feature.properties.count
+        base_cell = CELLSTYLE['FIRE']
+        lower = lower or 0.1
+        upper = upper or 0.5
+
+        opacity_range = upper - lower
+        base_opacity = lower
+
+        style = dict(
+            base_cell,
+            fillOpacity=(base_opacity
+                         + (opacity_range * count / max_count))
+        )
+
+        return style
+
+    def req_success(resp, status, jqxhr):
+        if jqxhr.status == 200:
+            max_count = resp.info.max_count
+
+            history_layer.clearLayers()
+            leaflet.geoJSON(
+                resp, {'style': lambda s: histogram_cell_style(s, max_count)}
+            ).addTo(history_layer)
+            history_layer.addTo(lmap)
+
+    def req_error(jqxhr, jq_error, text_error):
+        toast("History: Error '{}': {}".format(jq_error, text_error),
+              icon='error')
+
+    jq.ajax(
+        "/history/{region}/{year}".format(region=roi_name, year=year),
+        {
+            'dataType': 'json',
+            'data': dict(lags=lags) if lags > 0 else {},
+            'success': req_success,
+            'error': req_error
+        }
+    )
 
 
 lmap.on('editable:drawing:commit', on_draw_rect)
@@ -569,10 +642,14 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
 
 # jQuery is somehow way faster
 # get point for today
-def get_point_jq(ev):
+def page_load_init(ev):
     query_ajax_cluster()
+    value = document['history-options'].histmode.value
+    switch_subopts(mode=value)
 
-lmap.on('load', get_point_jq)
+
+
+lmap.on('load', page_load_init)
 
 base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
@@ -594,11 +671,12 @@ leaflet.control.layers(
         "Base": base.addTo(lmap)
     },
     {
-        "RoI": roi_layer.addTo(lmap),
+        "Region": roi_layer.addTo(lmap),
         "Clustered": clustered_layer.addTo(lmap),
-        "Raw": raw_layer.addTo(lmap),
+        "Raw Points": raw_layer.addTo(lmap),
         "Zone": zone_layer.addTo(lmap),
-        "Prediction": predict_layer
+        "Prediction": predict_layer,
+        "History": history_layer
     }
 ).addTo(lmap)
 lmap.setView([13, 100.8], 6)
