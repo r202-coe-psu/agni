@@ -115,6 +115,7 @@ fetch_satellite = {
 }
 
 def toast(text, icon=None, **toastopts):
+    html_icon = ''
     if icon is not None:
         html_icon = '<i class="material-icons">{icon}</i>'.format(icon=icon)
 
@@ -196,6 +197,15 @@ def draw_roi(roi_name, clear=True):
             "success": draw_roi_jq
         })
 
+@bind('#region-select', 'change')
+def region_changed(ev):
+    change_src = ev.target.id
+    if change_src == 'region-list':
+        global roi_name
+        roi_name = ev.target.value
+        draw_roi(roi_name)
+
+
 @bind('#map-options', 'change')
 def map_options_changed(ev):
     today = datetime.datetime.today()
@@ -217,10 +227,6 @@ def map_options_changed(ev):
         document['hotspot-date-offset'].value = max(0, 60-new_offset.days)
         target = date_cal
 
-    elif change_src == 'hotspot-roi-list':
-        global roi_name
-        roi_name = ev.target.value
-        draw_roi(roi_name)
 
 predict_zone = 'zone-roi'
 zone_layer = leaflet.LayerGroup.new()
