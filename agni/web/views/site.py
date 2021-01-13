@@ -95,36 +95,49 @@ def get_all_hotspots():
     # return as json
     return jsonify(ret)
 
-def lookup_data(datestart, dateend=None, sat_src=None, livedays=None):
+def lookup_external(dates, sat_src, bounds=None):
+    sat_points = []
+    for date in dates:
+        result = fetch_hotspots[sat_src](date)
+        if bounds is not None:
+            result = filtering.filter_bbox(result, bbox=bounds)
+        sat_points += result
+    return sat_points
+
+def lookup_db(dates, bounds=None):
+    start = min(dates)
+    end = max(dates)
+    if (end - start).days == 0:
+        end += datetime.timedelta(days=1)
+
+    influxql_str = """
+        select * from "hotspots"
+        where time >= '{start}' and time < '{end}'
+    """.format(start=start, end=end)
+
+    if bounds is not None:
+        # west,south,east,north
+        influxql_str += """ 
+            and longitude >= {bbox[0]} and longitude < {bbox[2]}
+            and latitude >= {bbox[1]} and latitude < {bbox[3]}
+        """.format(bbox=bounds)
+
+    influxql_str += ';'
+
+    result = influxdb.query(influxql_str,
+                            epoch='u',
+                            database=INFLUX_BUCKET)
+    sat_points = list(result.get_points())
+    return sat_points
+
+def lookup_data(
+        datestart, dateend=None, sat_src=None, livedays=None,
+        bounds=None):
+
     sat_src = 'viirs' if sat_src is None else sat_src
     livedays = 60 if livedays is None else livedays
 
-    def lookup_external(dates):
-        sat_points = []
-        for date in dates:
-            result = fetch_hotspots[sat_src](date)
-            sat_points += result
-        return sat_points
-
-    def lookup_db(dates):
-        start = min(dates)
-        end = max(dates)
-        if (end - start).days == 0:
-            end += datetime.timedelta(days=1)
-
-        influxql_str = """
-            select * from "hotspots"
-            where "time" >= '{start}'
-                and time < '{end}';
-        """.format(start=start, end=end)
-        result = influxdb.query(influxql_str,
-                                epoch='u',
-                                database=INFLUX_BUCKET)
-        sat_points = list(result.get_points())
-        return sat_points
-
     # find requested date range for target
-
     if dateend is None:
         datedelta = 1
     else:
@@ -133,7 +146,7 @@ def lookup_data(datestart, dateend=None, sat_src=None, livedays=None):
         datestart + datetime.timedelta(days=n)
         for n in range(datedelta)
     ]
-    print(lookup_dates)
+    #print(lookup_dates)
 
     req_ext = []
     req_db = []
@@ -142,14 +155,14 @@ def lookup_data(datestart, dateend=None, sat_src=None, livedays=None):
             req_ext.append(date)
         else:
             req_db.append(date)
-    print([req_ext, req_db])
+    #print([req_ext, req_db])
 
     sat_points = []
 
     if len(req_ext) > 0:
-        sat_points += lookup_external(req_ext)
+        sat_points += lookup_external(req_ext, sat_src, bounds)
     if len(req_db) > 0:
-        sat_points += lookup_db(req_db)
+        sat_points += lookup_db(req_db, bounds)
     # fetch live first, then try db
 
     return sat_points
@@ -278,6 +291,8 @@ def get_prediction():
     p_grid, p_edges = firepredictor.firegrid_model_compute(
         current_data, prev_data, area, 375
     )
+
+
     result_geojson = firepredictor.firegrid_geojson(p_grid, p_edges)
 
     return jsonify(result_geojson)
@@ -285,14 +300,19 @@ def get_prediction():
 @module.route('/history/<region>/<int:year>')
 @module.route('/history/<region>/<int:year>/<int:month>')
 def region_histogram(region, year, month=None):
-    if month is None:
-        start = datetime.date(year, 1, 1)
-        end = datetime.date(year+1, 1, 1)
-    else:
-        start = datetime.date(year, month, 1)
-        last_day = calendar.monthrange(year, month)[1]
-        end = datetime.date(year, month, last_day) + datetime.timedelta(days=1)
+    queryargs = request.args
+    lags = queryargs.get('lags', type=int, default=0)
 
+    if month is None:
+        start = datetime.datetime(year-lags, 1, 1)
+        end = datetime.datetime(year+1, 1, 1)
+    else:
+        start = datetime.datetime(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        end = (datetime.datetime(year, month, last_day)
+               + datetime.timedelta(days=1))
+
+    #print([start, end])
     # get region bbox for faster processing, no db yet
     roi_str = pkg_res.read_text(regions, "{}.geojson".format(region))
     roi_geojson = geojson.loads(roi_str)
@@ -301,21 +321,11 @@ def region_histogram(region, year, month=None):
     ).buffer(0)
     roi_bbox = roi_shape.bounds
 
-    influxql_str = """
-        select * from "hotspots"
-        where time >= '{start}' and time < '{end}'
-            and longitude >= {bbox[0]} and longitude < {bbox[2]}
-            and latitude >= {bbox[1]} and latitude < {bbox[3]};
-    """.format(
-        start=start, end=end,
-        bbox=roi_bbox
-    )
-    ql_result = influxdb.query(influxql_str,
-                            epoch='u',
-                            database=INFLUX_BUCKET)
-    data = list(ql_result.get_points())
-
+    data = lookup_data(datestart=start, dateend=end, bounds=roi_bbox)
     hmap = heatmap.NRTHeatmap(step=375, bounds=roi_bbox)
     hmap.fit(data, 'longitude', 'latitude')
 
-    return hmap.repr_geojson(keep_zero=False)
+    hmap_gj = hmap.repr_geojson(keep_zero=False)
+    hmap_gj['info'].update(dict(region=region))
+
+    return jsonify(hmap_gj)

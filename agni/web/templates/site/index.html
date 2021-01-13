@@ -179,13 +179,13 @@
             <label for="history-mode">History Mode</label>
             <p>
               <label>
-                <input value="year" class="with-gap" name="hist-mode" type="radio" />
+                <input value="year" class="with-gap" name="histmode" type="radio" checked/>
                 <span>By year</span>
               </label>
             </p>
             <p>
               <label>
-                <input value="month" class="with-gap" name="hist-mode" type="radio" />
+                <input value="month" class="with-gap" name="histmode" type="radio" />
                 <span>By month</span>
               </label>
             </p>
@@ -195,6 +195,27 @@
               </label> -->
           </div>
 
+          <div class="row subopts-mode" id="hist-mode-year">
+            <div class="input-field col s6">
+              <input type="number" id="target-year", min="2009" required="true">
+              <label for="lag-years">Year</label>
+            </div>
+            <div class="input-field col s6">
+              <input type="number" id="lag-years", min="0" class="validate">
+              <label for="lag-years">Offset</label>
+              <span class="helper-text" data-error="Invalid offset">
+              Offset from selected years
+              </span>
+            </div>
+          </div>
+
+          <div class="row subopts-mode" id="hist-mode-month">
+            Quark!
+          </div>
+
+          <div class="row right-align">
+            <a class="waves-effect waves-light btn" id="do-history">Show</a>
+          </div>
         </form>
       </div> 
       <!--
