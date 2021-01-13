@@ -63,6 +63,25 @@
   </div>
   <!-- map controls -->
   <div class="col s12 l3 pull-l9 content">
+    <div class="container">
+      <form action="#" id="region-select">
+        <div class="row input-field">
+          <select id="region-list" class="select">
+            {% for label, roi in roi_list %}
+            {% if loop.first %}
+            <option value="{{roi}}" selected="selected">{{label}}</option>"
+            {% else %}
+            <option value="{{roi}}">{{label}}</option>"
+            {% endif %}
+            {% endfor %}
+          </select>
+          <label>Region</label>
+        </div>
+      </form>
+    </div>
+
+    <div class="divider"></div>
+
     <ul class="tabs tabs-fixed-width">
       <li class="tab col"><a class="active" href="#hotspot-controls">Predict</a></li>
       <li class="tab col"><a href="#history-controls">History</a></li>
@@ -79,18 +98,6 @@
             <p class="range-field">
               <input type="range" min="0" max="60" value="60" id="hotspot-date-offset" />
             </p>
-          </div>
-          <div class="row input-field">
-            <select id="hotspot-roi-list" class="select">
-              {% for label, roi in roi_list %}
-              {% if loop.first %}
-              <option value="{{roi}}" selected="selected">{{label}}</option>"
-              {% else %}
-              <option value="{{roi}}">{{label}}</option>"
-              {% endif %}
-              {% endfor %}
-            </select>
-            <label>Region</label>
           </div>
         </form>
       </div>
@@ -166,6 +173,30 @@
       <span id="hotspot-info"></span>
     </div>
     <div class="container" id="history-controls">
+      <div class="section">
+        <form action="#" id="history-options">
+          <div class="row" id="hist-mode-picker">
+            <label for="history-mode">History Mode</label>
+            <p>
+              <label>
+                <input value="year" class="with-gap" name="hist-mode" type="radio" />
+                <span>By year</span>
+              </label>
+            </p>
+            <p>
+              <label>
+                <input value="month" class="with-gap" name="hist-mode" type="radio" />
+                <span>By month</span>
+              </label>
+            </p>
+              <!-- <label>
+                <input value="range" class="with-gap" name="hist-mode" type="radio" />
+                <span>Time Range</span>
+              </label> -->
+          </div>
+
+        </form>
+      </div> 
       <!--
         * region
           - region picker
