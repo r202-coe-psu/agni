@@ -74,7 +74,7 @@ DP_OPTS = {
 dp_elems = document.querySelectorAll('.datepicker')
 dp_instances = mcss.Datepicker.init(dp_elems, DP_OPTS)
 
-sel_elems = document.querySelectorAll('.select')
+sel_elems = document.querySelectorAll('select')
 sel_instances = mcss.FormSelect.init(sel_elems)
 
 tab_elems = document.querySelectorAll('.tabs')
@@ -393,6 +393,25 @@ def show_history(ev):
         }
     )
 
+@bind('#do-yeet', 'click')
+def yeet(ev):
+    data = jq('#ym-select').serialize()
+    def req_error(jqxhr, jq_error, text_error):
+        err_resp = jqxhr.responseJSON.to_dict()
+        for ek, ev in err_resp.items():
+            toast('{}: {}'.format(ek, ev), icon='error')
+    
+    jq.ajax(
+        "/testyeet",
+        {
+            'type': 'POST',
+            'dataType': 'json',
+            'data': data,
+            'success': lambda r, s, j: print(data),
+            'error': req_error
+        }
+    )
+
 
 lmap.on('editable:drawing:commit', on_draw_rect)
 lmap.on('editable:drag', on_drag_rect)
@@ -646,8 +665,6 @@ def page_load_init(ev):
     query_ajax_cluster()
     value = document['history-options'].histmode.value
     switch_subopts(mode=value)
-
-
 
 lmap.on('load', page_load_init)
 

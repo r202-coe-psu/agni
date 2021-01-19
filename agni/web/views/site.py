@@ -1,6 +1,12 @@
 from flask import Blueprint, render_template, current_app, url_for, request
 from flask import jsonify, send_from_directory
 
+from flask_wtf import FlaskForm
+from wtforms import (
+    Form, StringField, SelectField, IntegerField, ValidationError
+)
+
+
 import pathlib
 import json
 import csv
@@ -49,6 +55,26 @@ fetch_hotspots = {
     'modis': get_modis_hotspots
 }
 
+FORMS_MONTHS = [
+    ( '{:02}'.format(m), datetime.datetime(2020, m, 1).strftime('%B') ) 
+    for m in range(1, 13)
+]
+YEAR_START = 2000
+YEAR_END = datetime.datetime.now().year
+FORMS_YEAR = [(y, y) for y in range(YEAR_START, YEAR_END+1)]
+
+class YearMonthSelect(FlaskForm):
+    class Meta:
+        csrf = False
+    
+    #year = SelectField(label='Year', choices=FORMS_YEAR)
+    year = IntegerField(label='Year', default=YEAR_END)
+    month = SelectField(label='Month', choices=FORMS_MONTHS)
+
+    def validate_year(form, field):
+        if not (YEAR_START <= field.data <= YEAR_END):
+            raise ValidationError('Year outside available data range.')
+
 @module.route('/')
 def index():
     roi_none = ['Thailand', 'all']
@@ -68,8 +94,27 @@ def index():
         # get matching filename
         roi_def = pathlib.Path(roi_file).stem
         roi_list.append([roi_label, roi_def])
+    
+    ym_select = YearMonthSelect()
 
-    return render_template('/site/index.html', roi_list=roi_list)
+    return render_template('/site/index.html',
+        roi_list=roi_list,
+        ym_select=ym_select
+    )
+
+@module.route('/testyeet', methods=['post'])
+def index_post():
+    form = YearMonthSelect()
+    if form.validate_on_submit():
+        for k, v in form.data.items():
+            print(k, v)
+    else:
+        for k, v in form.errors.items():
+            print('ERR: {}: {}'.format(k, v))
+        print(form.errors)
+        return form.errors, 400
+
+    return dict()
 
 @module.route('/hotspots')
 def get_all_hotspots():
@@ -299,7 +344,7 @@ def get_prediction():
 
 @module.route('/history/<region>/<int:year>')
 @module.route('/history/<region>/<int:year>/<int:month>')
-def region_histogram(region, year, month=None):
+def get_region_histogram(region, year, month=None):
     queryargs = request.args
     lags = queryargs.get('lags', type=int, default=0)
 

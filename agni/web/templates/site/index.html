@@ -197,11 +197,11 @@
 
           <div class="row subopts-mode" id="hist-mode-year">
             <div class="input-field col s6">
-              <input type="number" id="target-year", min="2009" required="true">
+              <input type="number" id="target-year" min="2009" required="true">
               <label for="lag-years">Year</label>
             </div>
             <div class="input-field col s6">
-              <input type="number" id="lag-years", min="0" class="validate">
+              <input type="number" id="lag-years" min="0" class="validate">
               <label for="lag-years">Offset</label>
               <span class="helper-text" data-error="Invalid offset">
               Offset from selected years
@@ -216,6 +216,23 @@
           <div class="row right-align">
             <a class="waves-effect waves-light btn" id="do-history">Show</a>
           </div>
+        </form>
+        <form id="ym-select" action="#">
+          <div class="input-field col s6">
+            {{ ym_select.year() }}
+            {{ ym_select.year.label }} 
+          </div>
+          <div class="input-field col s6">
+            {{ ym_select.month() }}
+            {{ ym_select.month.label }}
+          </div>
+          <div class="row right-align">
+            <a class="waves-effect waves-light btn" id="do-yeet">Post</a>
+          </div>
+        </form>
+        {% for error in ym_select.errors.first_name %}
+          {{ error }}
+        {% endfor %}
         </form>
       </div> 
       <!--
