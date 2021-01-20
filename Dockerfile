@@ -8,12 +8,13 @@ COPY . /app
 WORKDIR /app
 
 RUN python3 -m pip install flask uwsgi
+RUN python3 -m pip install -r requirements.txt
 RUN python3 setup.py develop
 RUN npm install --prefix agni/web/static
 
-ENV SADHU_SETTINGS=/app/agni-production.cfg
-ENV FLASK_ENV=prodoction
-#ENV AUTHLIB_INSECURE_TRANSPORT=true
+ENV AGNI_SETTINGS=/app/agni-development.cfg
+ENV FLASK_ENV=development
+ENV AUTHLIB_INSECURE_TRANSPORT=true
 
 
 #EXPOSE 8080
