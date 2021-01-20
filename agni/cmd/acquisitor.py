@@ -1,5 +1,5 @@
 import os
-from .. import checker
+from .. import acquisitor
 
 import flask
 
@@ -23,9 +23,7 @@ def main():
 
     # settings.pop('__builtins__')
 
-    checker_server = checker.Server(settings)
+    fetcher_server = acquisitor.Server(settings)
 
-    checker_server.run()
-   
-
+    fetcher_server.run()
 
