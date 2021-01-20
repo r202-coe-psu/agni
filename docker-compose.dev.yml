@@ -47,22 +47,23 @@ services:
             AGNI_SETTINGS: "/app/agni-development.cfg"
             DEBUG: 1
         command: /app/scripts/agni-uwsgi.sh
-#   acquisitor:
-#       build: .
-#       image: agni-image
-#       container_name: agni-checker
-#       volumes:
-#           - .:/app
-#           - ../deployment:/deployment
-#           - /etc/localtime:/etc/localtime:ro
-#       links:
-#           - mongodb
-#       networks:
-#           - default
-#       # restart: always
-#       environment:
-#           SADHU_SETTINGS: /app/agni-development.cfg
-#       command: agni-data-acquisitor
+    acquisitor:
+       build: .
+       image: agni-image
+       container_name: agni-acquisitor
+       volumes:
+           - .:/app
+           - ../deployment:/deployment
+           - /etc/localtime:/etc/localtime:ro
+       links:
+           - mongodb
+           - influxdb
+       networks:
+           - default
+       # restart: always
+       environment:
+           AGNI_SETTINGS: /app/agni-development.cfg
+       command: agni-data-acquisitor
 
 networks:
     default:
