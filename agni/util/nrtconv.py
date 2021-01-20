@@ -34,11 +34,14 @@ def to_geojson(nrt_points):
     }
     return ret
 
-def to_influx_json(nrt_point, measure, timekey, tags=None, skip=None):
+def to_influx_json(
+        point, measure, timekey, tags=None, skip=None, skip_time=True
+):
+
     """ reshape NRT data to json compatible for InfluxDB usage
 
         Args:
-            nrt (dict):
+            point (dict):
                 NRT data point as dict
             measure (str):
                 InfluxDB measure name
@@ -50,6 +53,9 @@ def to_influx_json(nrt_point, measure, timekey, tags=None, skip=None):
                 instead of fields
             skip (list of str):
                 list of keys for values to skip processing
+            skip_time (bool):
+                skip including time column in timekey in data points
+                timekey column is always skipped unless this option is false
 
         Return:
             point (dict):
@@ -60,6 +66,8 @@ def to_influx_json(nrt_point, measure, timekey, tags=None, skip=None):
         tags = []
     if skip is None:
         skip = []
+    if skip_time:
+        skip.extend([timekey])
 
     influx_point = {
         'time': 0,
@@ -68,7 +76,7 @@ def to_influx_json(nrt_point, measure, timekey, tags=None, skip=None):
         'measurement': measure,
     }
 
-    for k, v in nrt_point.items():
+    for k, v in point.items():
         if k in skip or k == timekey:
             continue
 
@@ -80,12 +88,15 @@ def to_influx_json(nrt_point, measure, timekey, tags=None, skip=None):
             except ValueError:
                 influx_point['tags'][k] = str(v)
 
-    influx_point['time'] = int(nrt_point['acq_time'])
+    influx_point['time'] = int(point['acq_time'])
 
     return influx_point
 
-def to_influx_line(nrt, measure, timekey, tags=None, skip=None):
-    point = to_influx_json(nrt, measure, timekey, tags, skip)
+def to_influx_line(
+        point, measure, timekey, tags=None, skip=None, skip_time=True
+):
+
+    point = to_influx_json(point, measure, timekey, tags, skip)
 
     # formatting them into a line protocol format
     fields_out = (
