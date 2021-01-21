@@ -19,7 +19,6 @@ def init_db(app):
     db.init_app(app)
     influxdb.init_app(app=app)
 
-
 def init_mongoengine(settings):
     import mongoengine as me
     dbname = settings.get('MONGODB_DB')

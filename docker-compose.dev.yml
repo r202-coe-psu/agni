@@ -9,6 +9,8 @@ services:
         # restart: always
         networks:
             - default
+        ports:
+            - "27017:27017"
     influxdb:
         image: influxdb
         container_name: agni-influxdb
