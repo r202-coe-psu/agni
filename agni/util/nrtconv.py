@@ -1,6 +1,7 @@
 import datetime
 import json
 import copy
+from typing import Callable
 
 PRUNE_PROPS = ['latitude', 'longitude', 'acq_date', 'acq_time']
 
@@ -35,7 +36,9 @@ def to_geojson(nrt_points):
     return ret
 
 def to_influx_json(
-        point, measure, timekey, tags=None, skip=None, skip_time=True
+        point, measure, timekey, 
+        tags=None, skip=None, auto_tags=False,
+        precision=None
 ):
 
     """ reshape NRT data to json compatible for InfluxDB usage
@@ -65,16 +68,24 @@ def to_influx_json(
     if tags is None:
         tags = []
     if skip is None:
-        skip = []
-    if skip_time:
-        skip.extend([timekey])
+        skip = [timekey]
 
     influx_point = {
-        'time': 0,
+        'time': None,
         'tags': {},
         'fields': {},
         'measurement': measure,
     }
+
+    if auto_tags:
+        for k, v in point.items():
+            if k in skip or k == timekey:
+                continue
+
+            try:
+                _ = float(v)
+            except ValueError:
+                k not in tags and tags.append(k)
 
     for k, v in point.items():
         if k in skip or k == timekey:
@@ -83,20 +94,26 @@ def to_influx_json(
         if k in tags:
             influx_point['tags'][k] = str(v)
         else:
-            try:
-                influx_point['fields'][k] = float(v)
-            except ValueError:
-                influx_point['tags'][k] = str(v)
+            influx_point['fields'][k] = float(v)
 
-    influx_point['time'] = int(point['acq_time'])
+    if precision is None or precision.casefold() == 'rfc3339':
+        influx_point['time'] = point[timekey].isoformat()
+    elif precision in ['h','m','s','ms','u','ns']:
+        influx_point['time'] = int(point[timekey])
+    else:
+        raise TypeError('Cannot parse time data')
 
     return influx_point
 
 def to_influx_line(
-        point, measure, timekey, tags=None, skip=None, skip_time=True
+        point, measure, timekey, 
+        tags=None, skip=None, auto_tags=False,
+        precision=None
 ):
 
-    point = to_influx_json(point, measure, timekey, tags, skip)
+    point = to_influx_json(
+        point, measure, timekey, tags, skip, auto_tags, precision
+    )
 
     # formatting them into a line protocol format
     fields_out = (
