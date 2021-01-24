@@ -16,7 +16,15 @@
     {% block additional_head %}{% endblock %}
   </head>
 
-  <body onload="brython()">
+<script>
+  brython_opts = {
+    debug: 1,
+    pythonpath: ["{{ url_for('static', filename='brython_modules') }}"]
+  }
+</script>
+
+<body onload="brython(brython_opts)">
+  </body>
     {% block body %}{% endblock %}
   </body>
 	{% block additional_js %}{% endblock %}
