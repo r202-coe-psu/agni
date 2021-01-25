@@ -1,8 +1,3 @@
-import datetime
-import json
-import copy
-from typing import Callable
-
 PRUNE_PROPS = ['latitude', 'longitude', 'acq_date', 'acq_time']
 
 def make_geojson_point(nrt):
@@ -21,7 +16,6 @@ def make_geojson_point(nrt):
         }
     }
     return ret
-
 
 def to_geojson(nrt_points):
     points = list(

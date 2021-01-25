@@ -91,7 +91,7 @@ class NRTHeatmap:
         bl = (west, bottom)
         br = (east, bottom)
 
-        poly = [tl, bl, br, tr, tl]
+        poly = [bl, br, tr, tl, bl]
         rect = geojson.Polygon([poly])
 
         lonlat_rect = geojson.utils.map_tuples(

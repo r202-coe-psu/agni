@@ -5,6 +5,8 @@ import sys
 
 import requests
 
+from ..util import timefmt
+
 API_URL = 'https://nrt4.modaps.eosdis.nasa.gov/api/v2/content/archives/FIRMS/'
 TOKEN = 'DB8ECCD2-41E6-11EA-8E17-6EBC4405026C'
 
@@ -29,13 +31,19 @@ SRC_NOAA = {
     'filename': 'J1_VIIRS_C2_SouthEast_Asia_VJ114IMGTDL_NRT_'
 }
 
+MAKE_FLOATS = [
+    'latitude', 'longitude',
+    'bright_ti4', 'bright_ti5', 'bright_t32',
+    'frp'
+]
+
 def make_url(src, date):
     filedate = date.strftime('%Y%j')
     filename = "{}.txt".format(filedate)
 
     return ''.join([API_URL, src['url'], src['filename'], filename])
 
-def reshape_csv(raw_csv):
+def process_csv(raw_csv):
     """preprocess NRT raw CSV to python dict
 
     Args:
@@ -47,11 +55,8 @@ def reshape_csv(raw_csv):
     acq_epoch_last = None
     acq_dupe = 0
     for line in csv_reader:
-        # make floats
-        make_floats = ['latitude', 'longitude', 'bright_ti4', 'bright_ti5',
-                       'bright_t32', 'frp']
         for k, v in line.items():
-            if k in make_floats:
+            if k in MAKE_FLOATS:
                 line[k] = float(v)
 
         # change acq_{date,time} to unix epoch MICROseconds
@@ -61,12 +66,8 @@ def reshape_csv(raw_csv):
                 acq_time=line['acq_time']
             )
         )
-        # had to determine epoch time by dividing timedeltas
-        # since strftime('%S') isn't guaranteed to be portable
-        # just in case
-        epoch_start = datetime.datetime(1970, 1, 1)
-        usec_delta = datetime.timedelta(microseconds=1)
-        acq_epoch = (acq_datetime - epoch_start) / usec_delta
+
+        acq_epoch = timefmt.format_epoch_usec(acq_datetime)
 
         # dealing with duplicate acquire datetime for different data points
         # append offset to us to make it a unique point for influxdb
@@ -102,8 +103,6 @@ def request_nrt(date=None, src=None):
     if src is None:
         src = SRC_VIIRS
 
-    #filedate = date.strftime('%Y%j')
-
     url = make_url(src, date)
     r = requests.get(url, headers={'Authorization': 'Bearer {}'.format(TOKEN)})
     return r
@@ -116,7 +115,7 @@ def get_nrt_data(date=None, src=None):
 
     req.raise_for_status()
     hotspots = {}
-    hotspots = reshape_csv(req.text)
+    hotspots = process_csv(req.text)
 
     return hotspots
 

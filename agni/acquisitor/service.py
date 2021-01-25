@@ -67,6 +67,7 @@ class FetcherDatabase:
             except InfluxDBClientError:
                 time.sleep(delay)
 
+
 class Fetcher:
     LOCAL_TZ = pytz.timezone('Asia/Bangkok')
     MAX_DELTA = datetime.timedelta(days=60)
@@ -85,7 +86,7 @@ class Fetcher:
 
     def process_data_time(self, data, timekey, index_timekey='time'):
         data_df = pd.DataFrame(data)
-        data_time = data_df[timekey].apply(timefmt.parse_timestamp_us)
+        data_time = data_df[timekey].apply(timefmt.parse_epoch_us)
         data_df[index_timekey] = pd.DatetimeIndex(data_time)
         #data_df.set_index(index_timekey)
         return data_df
@@ -101,7 +102,7 @@ class Fetcher:
         return result
 
     def influx_latest_time(self):
-        ql_str = """
+        ql_str = """\
             select * from {measurement}
             order by time desc
             limit 1 ;
