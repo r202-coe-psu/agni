@@ -1,24 +1,25 @@
-import math
-
 import pyproj
 import geojson
 
 import numpy as np
 import pandas as pd
 
-from agni.util import nprange
+from ..util import ranger
+from ..util import geojsontools as gjtool
 
-class NRTHeatmap:
     _PROJ_LONLAT = pyproj.Proj('epsg:4326') # lat, lon
     _PROJ_UTM47N = pyproj.Proj('epsg:32647') # UTM 47N, as appeared in shapefiles
-
     # coordinate transformers
-    UTM_TF = pyproj.Transformer.from_proj(
+_UTM_TF = pyproj.Transformer.from_proj(
         _PROJ_LONLAT, _PROJ_UTM47N, always_xy=True
     )
-    GPS_TF = pyproj.Transformer.from_proj(
+_GPS_TF = pyproj.Transformer.from_proj(
         _PROJ_UTM47N, _PROJ_LONLAT, always_xy=True
     )
+
+class NRTHeatmap:
+    UTM_TF = _UTM_TF
+    GPS_TF = _GPS_TF
     def __init__(self, step=None, bounds=None):
         self.grid = None
         self.edges = None
@@ -41,8 +42,8 @@ class NRTHeatmap:
         bl = (area_x[0], area_y[0])
         tr = (area_x[1], area_y[1])
 
-        lons_u = nprange.closed_range(bl[0], tr[0], self.step)
-        lats_u = nprange.closed_range(bl[1], tr[1], self.step)
+        lons_u = ranger.closed_range(bl[0], tr[0], self.step)
+        lats_u = ranger.closed_range(bl[1], tr[1], self.step)
 
         self.edges = (lons_u, lats_u)
 
@@ -84,22 +85,9 @@ class NRTHeatmap:
         elats = self.edges[1]
 
         west, east = elons[x:x+2]
-        bottom, top = elats[y:y+2]
+        south, north = elats[y:y+2]
 
-        tl = (west, top)
-        tr = (east, top)
-        bl = (west, bottom)
-        br = (east, bottom)
-
-        poly = [bl, br, tr, tl, bl]
-        rect = geojson.Polygon([poly])
-
-        lonlat_rect = geojson.utils.map_tuples(
-            lambda c: self.GPS_TF.transform(*c),
-            rect
-        )
-
-        return lonlat_rect
+        return gjtool.rect(west, south, east, north) 
 
     def repr_geojson(self, keep_zero=True):
         elons = self.edges[0]
@@ -113,6 +101,7 @@ class NRTHeatmap:
                     continue
 
                 rect = self._create_cell_rect(x, y)
+                rect = gjtool.reproject(rect, self.GPS_TF)
 
                 feature = geojson.Feature(
                     geometry=rect,
@@ -130,10 +119,6 @@ class NRTHeatmap:
             'shape': list(self.grid.shape)
         }
         return out_features
-
-    #__geo_interface__ = {
-        # return geojson-like for rendering
-    #}
 
 def loads(hmap_gj: dict):
     """ UNIMPLEMENTED: reconstruct hmap from serialized hmap geojson """
