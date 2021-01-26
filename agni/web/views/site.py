@@ -6,7 +6,6 @@ from wtforms import (
     Form, StringField, SelectField, IntegerField, ValidationError
 )
 
-
 import pathlib
 import json
 import csv
@@ -37,10 +36,15 @@ module = Blueprint('site', __name__)
 modis_hotspots = {}
 viirs_hotspots = {}
 
-INFLUX_UNAME = 'agnitest'
-INFLUX_PASSWD = 'agnitest'
-INFLUX_BUCKET = 'hotspots'
-INFLUX_URL = 'http://localhost:8086'
+app_conf = current_app.config
+#
+#INFLUX_HOST   = app_conf.get("INFLUXDB_HOST", 'localhost')
+#INFLUX_PORT   = app_conf.get("INFLUXDB_PORT", '8086')
+#INFLUX_UNAME  = app_conf.get("INFLUXDB_USER", "root")
+#INFLUX_PASSWD = app_conf.get("INFLUXDB_PASSWORD", "root")
+INFLUX_BUCKET = app_conf.get("INFLUXDB_DATABASE", None)
+#
+#INFLUX_URL = 'http://{host}:{port}'.format(host=INFLUX_HOST, port=INFLUX_PORT)
 
 TODAY = datetime.datetime.today()
 
@@ -149,16 +153,17 @@ def lookup_external(dates, sat_src, bounds=None):
         sat_points += result
     return sat_points
 
-def lookup_db(dates, bounds=None):
+def lookup_db(dates, bounds=None, measurement=None):
     start = min(dates)
     end = max(dates)
+    measurement = measurement or 'hotspots'
     if (end - start).days == 0:
         end += datetime.timedelta(days=1)
 
     influxql_str = """
-        select * from "hotspots"
+        select * from "{measurement}"
         where time >= '{start}' and time < '{end}'
-    """.format(start=start, end=end)
+    """.format(start=start, end=end, measurement=measurement)
 
     if bounds is not None:
         # west,south,east,north
@@ -177,38 +182,42 @@ def lookup_db(dates, bounds=None):
 
 def lookup_data(
         datestart, dateend=None, sat_src=None, livedays=None,
-        bounds=None):
+        bounds=None
+):
 
-    sat_src = 'viirs' if sat_src is None else sat_src
-    livedays = 60 if livedays is None else livedays
+    sat_src = sat_src or 'viirs'
+    livedays = livedays or 60
 
     # find requested date range for target
     if dateend is None:
         datedelta = 1
     else:
         datedelta = (dateend - datestart).days
+
     lookup_dates = [
         datestart + datetime.timedelta(days=n)
         for n in range(datedelta)
     ]
     #print(lookup_dates)
 
-    req_ext = []
-    req_db = []
-    for date in lookup_dates:
-        if TODAY - date <= datetime.timedelta(days=livedays):
-            req_ext.append(date)
-        else:
-            req_db.append(date)
-    #print([req_ext, req_db])
+#    req_ext = []
+#    req_db = []
+#    for date in lookup_dates:
+#        if TODAY - date <= datetime.timedelta(days=livedays):
+#            req_ext.append(date)
+#        else:
+#            req_db.append(date)
+#    #print([req_ext, req_db])
+#
+#    sat_points = []
+#
+#    if len(req_ext) > 0:
+#        sat_points += lookup_external(req_ext, sat_src, bounds)
+#    if len(req_db) > 0:
+#        sat_points += lookup_db(req_db, bounds)
+#    # fetch live first, then try db
 
-    sat_points = []
-
-    if len(req_ext) > 0:
-        sat_points += lookup_external(req_ext, sat_src, bounds)
-    if len(req_db) > 0:
-        sat_points += lookup_db(req_db, bounds)
-    # fetch live first, then try db
+    sat_points = lookup_db(lookup_dates, bounds)
 
     return sat_points
 

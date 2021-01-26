@@ -5,6 +5,9 @@ EPOCH_START = datetime.datetime(1970,1,1)
 _DELTA_ZERO = datetime.timedelta(0)
 _DELTA_US = datetime.timedelta(microseconds=1)
 
+JULIAN_FMT = '%Y%j'
+WEB_FMT = '%Y-%m-%d'
+
 def parse_epoch_us(ts: int):
     us = datetime.timedelta(microseconds=ts)
     return EPOCH_START + us
@@ -38,3 +41,14 @@ def format_delta(delta: datetime.timedelta):
 
     return ''.join(text)
 
+def format_web(date):
+    return date.strftime(WEB_FMT)
+
+def parse_web(datestr):
+    return datetime.datetime.strptime(datestr, WEB_FMT)
+
+def format_julian(date):
+    return date.strftime(JULIAN_FMT)
+
+def parse_julian(datestr):
+    return datetime.datetime.strptime(datestr, JULIAN_FMT)
