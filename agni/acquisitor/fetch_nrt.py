@@ -1,9 +1,9 @@
 import datetime
 import csv
-import os
-import sys
+import io
 
 import requests
+import pandas as pd
 
 from ..util import timefmt
 
@@ -86,7 +86,30 @@ def process_csv(raw_csv):
     # return hotspots
     return hotspots
 
-def request_nrt(date=None, src=None):
+def process_csv_pandas(raw_csv, as_dict=False):
+    csv_str_io = io.StringIO(raw_csv)
+    hotspots = pd.read_csv(
+        csv_str_io, 
+        parse_dates={
+            'time': ['acq_date', 'acq_time']
+        }
+    )
+
+    # dedupe time to usec offset
+    time_dupe = hotspots.groupby('time').cumcount()
+    hotspots['acq_time'] = (hotspots['time']
+                            + pd.to_timedelta(time_dupe, unit='us'))
+
+    if as_dict:
+        hotspots_list = hotspots.to_dict('records')
+        for point in hotspots_list:
+            point['time'] = point['time'].to_pydatetime()
+
+        return hotspots_list
+
+    return hotspots
+
+def request_nrt(date=None, src=SRC_VIIRS, token=TOKEN):
     """Fetch NRT Data from NASA (SEA Region) by date
 
     Args:
@@ -100,11 +123,14 @@ def request_nrt(date=None, src=None):
     """
     if date is None:
         date = datetime.datetime.today()
-    if src is None:
-        src = SRC_VIIRS
 
     url = make_url(src, date)
-    r = requests.get(url, headers={'Authorization': 'Bearer {}'.format(TOKEN)})
+    r = requests.get(
+        url, 
+        headers={
+            'Authorization': 'Bearer {}'.format(token)
+        }
+    )
     return r
 
 def get_nrt_data(date=None, src=None):
