@@ -67,7 +67,7 @@ def process_csv(raw_csv):
             )
         )
 
-        acq_epoch = timefmt.format_epoch_usec(acq_datetime)
+        acq_epoch = timefmt.format_epoch_us(acq_datetime)
 
         # dealing with duplicate acquire datetime for different data points
         # append offset to us to make it a unique point for influxdb

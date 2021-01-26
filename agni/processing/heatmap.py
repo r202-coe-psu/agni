@@ -7,15 +7,15 @@ import pandas as pd
 from ..util import ranger
 from ..util import geojsontools as gjtool
 
-    _PROJ_LONLAT = pyproj.Proj('epsg:4326') # lat, lon
-    _PROJ_UTM47N = pyproj.Proj('epsg:32647') # UTM 47N, as appeared in shapefiles
-    # coordinate transformers
+_PROJ_LONLAT = pyproj.Proj('epsg:4326') # lat, lon
+_PROJ_UTM47N = pyproj.Proj('epsg:32647') # UTM 47N, as appeared in shapefiles
+# coordinate transformers
 _UTM_TF = pyproj.Transformer.from_proj(
-        _PROJ_LONLAT, _PROJ_UTM47N, always_xy=True
-    )
+    _PROJ_LONLAT, _PROJ_UTM47N, always_xy=True
+)
 _GPS_TF = pyproj.Transformer.from_proj(
-        _PROJ_UTM47N, _PROJ_LONLAT, always_xy=True
-    )
+    _PROJ_UTM47N, _PROJ_LONLAT, always_xy=True
+)
 
 class NRTHeatmap:
     UTM_TF = _UTM_TF
@@ -69,15 +69,24 @@ class NRTHeatmap:
         xdata, ydata = self.UTM_TF.transform(xdata.to_list(), ydata.to_list())
         return xdata, ydata
 
-    def fit(self, data, xkey, ykey):
+    def fit(self, data, xkey, ykey, wkey=None, density=False):
         """ fit data to make grid """
         if self.bounds is None:
             raise ValueError("bounding area unset")
 
         data_ = pd.DataFrame(data)
-        
+
+        weights = wkey is not None
+        weights_data = None
+        if weights:
+            weights_data = data_[wkey]
+
         xdata, ydata = self._prepare_data(data_, xkey=xkey, ykey=ykey)
-        count, xedge, yedge = np.histogram2d(x=xdata, y=ydata, bins=self.edges)
+        count, xedge, yedge = np.histogram2d(
+            x=xdata, y=ydata, bins=self.edges,
+            weights=(weights_data if weights else None),
+            density=density
+        )
         self.grid = (count.T).astype(int)
 
     def _create_cell_rect(self, x, y):

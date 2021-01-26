@@ -9,3 +9,15 @@ def closed_range(start, stop, _step=1):
         _step = int(np.round(_step))
 
     return np.linspace(start, stop, _step)
+
+# from https://stackoverflow.com/a/6822761
+from collections import deque
+
+def window(seq, n=2):
+    it = iter(seq)
+    win = deque((next(it, None) for _ in range(n)), maxlen=n)
+    yield list(win)
+    append = win.append
+    for e in it:
+        append(e)
+        yield win
