@@ -12,11 +12,11 @@ services:
         ports:
             - "27017:27017"
     influxdb:
-        image: influxdb
+        image: influxdb:1.8-alpine
         container_name: agni-influxdb
         volumes:
             - /etc/localtime:/etc/localtime:ro
-            - /mnt/hddata/influxdb:/var/lib/influxdb
+            - ../deployment/agni/influxdb:/var/lib/influxdb
             - ./agni-influxdb-config.conf:/etc/influxdb/influxdb.conf:ro
         # restart: always
         ports:
