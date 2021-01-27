@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class FetcherDatabase:
     def __init__(self, settings):
         self.version = None
-        
+
         self.host = settings.get("INFLUXDB_HOST", 'localhost')
         self.port = settings.get("INFLUXDB_PORT", '8086')
         self.username = settings.get("INFLUXDB_USER", "root")
@@ -34,7 +34,7 @@ class FetcherDatabase:
     
     def write(
             self, data, measure, database=None,
-            precision='u', batch_size=5000
+            precision=None, batch_size=5000
     ):
         database = database or self.database
         pending = (
@@ -84,7 +84,7 @@ class Fetcher:
         now_utc = self.LOCAL_TZ.localize(now_local).utcnow()
         return now_utc if utc else now_local
 
-    def process_data_time(self, data, timekey, index_timekey='time'):
+    def process_data_time_us(self, data, timekey, index_timekey='time'):
         data_df = pd.DataFrame(data)
         data_time = data_df[timekey].apply(timefmt.parse_epoch_us)
         data_df[index_timekey] = pd.DatetimeIndex(data_time)
@@ -143,7 +143,8 @@ class Fetcher:
             data = self.fetch_live_data(date, region=filtering.TH_BBOX_EXACT)
             all_data += data
 
-        all_data_df = self.process_data_time(all_data, timekey='acq_time')
+        #all_data_df = self.process_data_time_us(all_data, timekey='time')
+        all_data_df = pd.DataFrame(all_data)
         new_data = self.filter_newer_data(all_data_df, min_time=fetch_start)
         logger.debug('All data length: {}'.format(len(all_data)))
         logger.debug('New data length: {}'.format(len(new_data)))
