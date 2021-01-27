@@ -33,9 +33,11 @@ SRC_NOAA = {
 
 MAKE_FLOATS = [
     'latitude', 'longitude',
+    'scan', 'track',
     'bright_ti4', 'bright_ti5', 'bright_t32',
-    'frp'
+    'frp',
 ]
+SKIP = ['acq_date', 'acq_time']
 
 def make_url(src, date):
     filedate = date.strftime('%Y%j')
@@ -55,10 +57,7 @@ def process_csv(raw_csv):
     acq_epoch_last = None
     acq_dupe = 0
     for line in csv_reader:
-        for k, v in line.items():
-            if k in MAKE_FLOATS:
-                line[k] = float(v)
-
+        out = {}
         # change acq_{date,time} to unix epoch MICROseconds
         acq_datetime = datetime.datetime.fromisoformat(
             "{acq_date} {acq_time}".format(
@@ -66,7 +65,6 @@ def process_csv(raw_csv):
                 acq_time=line['acq_time']
             )
         )
-
         acq_epoch = timefmt.format_epoch_us(acq_datetime)
 
         # dealing with duplicate acquire datetime for different data points
@@ -77,11 +75,20 @@ def process_csv(raw_csv):
         else:
             acq_dupe = 0
 
-        line['acq_time'] = int(acq_epoch + acq_dupe)
+        point_time = int(acq_epoch + acq_dupe)
+        out['time'] = timefmt.parse_epoch_us(point_time)
         acq_epoch_last = acq_epoch
 
+        for k, v in line.items():
+            if k in SKIP:
+                continue
+            if k in MAKE_FLOATS:
+                out[k] = float(v)
+            else:
+                out[k] = v
+
         # add to known hotspots
-        hotspots.append(line)
+        hotspots.append(out)
 
     # return hotspots
     return hotspots
@@ -97,8 +104,8 @@ def process_csv_pandas(raw_csv, as_dict=False):
 
     # dedupe time to usec offset
     time_dupe = hotspots.groupby('time').cumcount()
-    hotspots['acq_time'] = (hotspots['time']
-                            + pd.to_timedelta(time_dupe, unit='us'))
+    hotspots['time'] = (hotspots['time']
+                        + pd.to_timedelta(time_dupe, unit='us'))
 
     if as_dict:
         hotspots_list = hotspots.to_dict('records')
