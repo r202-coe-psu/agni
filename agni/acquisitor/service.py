@@ -9,7 +9,7 @@ from influxdb import InfluxDBClient
 from influxdb.exceptions import InfluxDBClientError
 
 from ..acquisitor import fetch_nrt, filtering
-from ..util import nrtconv, timefmt
+from ..util import nrtconv, timefmt, ranger
 
 import logging
 logger = logging.getLogger(__name__)
@@ -111,11 +111,6 @@ class Fetcher:
         latest_time = ciso8601.parse_datetime_as_naive(data[0]['time'])
         return latest_time
 
-    def date_range(self, start, end, freq='D', normalize=False):
-        date_range = pd.date_range(start, end, freq=freq)
-        date_range = date_range.to_pydatetime().tolist()
-        return date_range
-
     def fetch(self):
         try:
             latest = self.influx_latest_time()
@@ -134,7 +129,7 @@ class Fetcher:
         )
 
         all_data = []
-        fetch_dates = self.date_range(
+        fetch_dates = ranger.date_range(
             fetch_start, fetch_end, 
             freq='D', normalize=True
         )

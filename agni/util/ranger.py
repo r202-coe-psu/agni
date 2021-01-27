@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 # from https://stackoverflow.com/a/57321916
 def closed_range(start, stop, _step=1):
@@ -21,3 +22,8 @@ def window(seq, n=2):
     for e in it:
         append(e)
         yield win
+
+def date_range(start, end, freq='D', normalize=False):
+    date_range = pd.date_range(start, end, freq=freq, normalize=normalize)
+    date_range = date_range.to_pydatetime().tolist()
+    return date_range
