@@ -26,7 +26,7 @@ except ImportError:
 import pandas as pd
 
 from agni.acquisitor import fetch_nrt, filtering
-from agni.util import nrtconv, ranger
+from agni.util import nrtconv, ranger, timefmt
 from agni.models import influxdb
 from agni.processing import firecluster, firepredictor, heatmap
 from agni.web import regions
@@ -177,8 +177,8 @@ def lookup_db(dates, bounds=None, measurement=None, database=None):
     influxql_str += ';'
 
     result = influxdb.query(influxql_str,
-                            epoch='u',
-                            database=INFLUX_BUCKET)
+                            epoch=None,
+                            database=database)
     sat_points = list(result.get_points())
     return sat_points
 
@@ -267,11 +267,11 @@ def get_clustered_hotspots():
     requested_date = queryargs.get('date', type=str)
     roi_name = queryargs.get('roi', type=str)
 
-    today = datetime.datetime.today()
+    today = datetime.datetime.now()
     datestart = today
     if requested_date is not None:
         try:
-            datestart = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
+            datestart = timefmt.parse_web(requested_date)
         except ValueError:
             datestart = today
     target_julian = datestart.strftime('%Y%j')

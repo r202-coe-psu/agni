@@ -343,6 +343,7 @@ def show_history(ev):
         return
 
     year = int(document['target-year'].value)
+    frp = document["use-frp"].checked
     lags_input = document['lag-years']
     if 'invalid' in lags_input.class_name:
         toast(text="Offset must be higher than zero.", icon='error')
@@ -387,7 +388,10 @@ def show_history(ev):
         "/history/{region}/{year}".format(region=roi_name, year=year),
         {
             'dataType': 'json',
-            'data': dict(lags=lags) if lags > 0 else {},
+            'data': dict(
+                lags=lags,
+                frp=frp
+            ),
             'success': req_success,
             'error': req_error
         }
@@ -464,10 +468,16 @@ def cluster_data(resp, status, jqxhr):
 
     def turf_features(feature, layer):
         features_dict = feature.properties.to_dict()
+
+        # format time for display
+        utc_time = javascript.Date.new(features_dict['time'])
+        features_dict['time'] = utc_time.toLocaleString()
+        # format infos
         features_str = [
             "<b>{}</b>: {}".format(k, v)
             for k, v in features_dict.items()
         ]
+        
         layer.bindPopup('<br />'.join(features_str))
 
     def turf_filter(feature):
@@ -569,78 +579,6 @@ def date_query_slider(ev):
     target_str = target.strftime('%Y-%m-%d')
 
     change_or_query(target)
-
-def marker_popup(e):
-    """ generate contents for clicked marker """
-    e_dict = e.to_dict()
-    coords = e.getLatLng().to_dict()
-    feature_str = [ "<b>{}</b>: {}".format(k, v)
-        for k, v in e.feature.items() 
-    ]
-    return '<br />'.join(feature_str)
-
-def draw_one_marker(spot, marker_opts):
-    # make a marker
-    coords = (spot['latitude'], spot['longitude'])
-
-    m = leaflet.circleMarker(coords, marker_opts)
-
-    # embed features into marker
-    feature = spot.to_dict()
-    del feature['latitude']
-    del feature['longitude']
-    del feature['acq_date']
-    del feature['acq_time']
-    m.feature = feature
-
-    # add popup before return marker instance
-    m.bindPopup(marker_popup)
-    return m
-
-def draw_all(data, date_jul):
-    if date_jul not in marker_dated:
-        mkl = leaflet.LayerGroup.new()
-        marker_dated[date_jul] = mkl
-    else:
-        mkl = marker_dated[date_jul]
-
-    for spot in data:
-        m = draw_one_marker(spot)
-        m.addTo(mkl)
-
-    mkl.addTo(marker_layer)
-    marker_layer.addTo(lmap)
-    document['hotspot-info'].text = ''
-
-def draw_chunks(data, date_jul,marker_opts,marker_layer,mkl,marker_dated):
-    todo = data.copy()
-    chunksize = 200
-    chunkdelay = 100
-
-    mkl = leaflet.LayerGroup.new()
-
-    def dotask():
-        items = todo[0:chunksize]
-
-        for spot in items:
-            m = draw_one_marker(spot)
-            m.addTo(mkl)
-
-        del todo[0:chunksize]
-
-        if len(todo) > 0:
-            timer.set_timeout(dotask, chunkdelay)
-            load_percent = 1 - (len(todo) / len(data))
-            load_str = "{:.1%}".format(load_percent)
-            #document['progress-bar-v'].style.width = load_str
-            document['hotspot-info'].text = load_str
-        else:
-            enable_input(True)
-            document['hotspot-info'].text = ''
-
-    timer.set_timeout(dotask, chunkdelay)
-    mkl.addTo(marker_layer)
-    marker_layer.addTo(lmap)
 
 def hotspot_get_jq(resp_data, text_status, jqxhr):
     # resp_data.data is already json
