@@ -3,7 +3,8 @@ from flask import jsonify, send_from_directory
 
 from flask_wtf import FlaskForm
 from wtforms import (
-    Form, StringField, SelectField, IntegerField, ValidationError
+    Form, StringField, SelectField, IntegerField, FormField,
+    ValidationError
 )
 
 import pathlib
@@ -356,6 +357,7 @@ def get_prediction():
 def get_region_histogram(region, year, month=None):
     queryargs = request.args
     lags = queryargs.get('lags', type=int, default=0)
+    frp = queryargs.get('frp', type=str, default='false')
 
     if month is None:
         start = datetime.datetime(year-lags, 1, 1)
@@ -376,8 +378,13 @@ def get_region_histogram(region, year, month=None):
     roi_bbox = roi_shape.bounds
 
     data = lookup_data(datestart=start, dateend=end, bounds=roi_bbox)
+    weights = frp.casefold()=='true' and 'frp' or None
+    
     hmap = heatmap.NRTHeatmap(step=375, bounds=roi_bbox)
-    hmap.fit(data, 'longitude', 'latitude')
+    hmap.fit(
+        data, 'longitude', 'latitude',
+        wkey=weights
+    )
 
     hmap_gj = hmap.repr_geojson(keep_zero=False)
     hmap_gj['info'].update(dict(region=region))
