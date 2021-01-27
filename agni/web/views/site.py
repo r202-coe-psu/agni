@@ -26,7 +26,7 @@ except ImportError:
 import pandas as pd
 
 from agni.acquisitor import fetch_nrt, filtering
-from agni.util import nrtconv
+from agni.util import nrtconv, ranger
 from agni.models import influxdb
 from agni.processing import firecluster, firepredictor, heatmap
 from agni.web import regions
@@ -37,15 +37,13 @@ module = Blueprint('site', __name__)
 modis_hotspots = {}
 viirs_hotspots = {}
 
-app_conf = current_app.config
-#
-#INFLUX_HOST   = app_conf.get("INFLUXDB_HOST", 'localhost')
-#INFLUX_PORT   = app_conf.get("INFLUXDB_PORT", '8086')
-#INFLUX_UNAME  = app_conf.get("INFLUXDB_USER", "root")
-#INFLUX_PASSWD = app_conf.get("INFLUXDB_PASSWORD", "root")
-INFLUX_BUCKET = app_conf.get("INFLUXDB_DATABASE", None)
-#
-#INFLUX_URL = 'http://{host}:{port}'.format(host=INFLUX_HOST, port=INFLUX_PORT)
+INFLUX_HOST   = 'localhost'
+INFLUX_PORT   = '8086'
+INFLUX_UNAME  = "root"
+INFLUX_PASSWD = "root"
+INFLUX_BUCKET = 'hotspots'
+
+INFLUX_URL = 'http://{host}:{port}'.format(host=INFLUX_HOST, port=INFLUX_PORT)
 
 TODAY = datetime.datetime.today()
 
@@ -82,6 +80,9 @@ class YearMonthSelect(FlaskForm):
 
 @module.route('/')
 def index():
+    global INFLUX_BUCKET
+    INFLUX_BUCKET = current_app.config.get("INFLUXDB_DATABASE", None)
+
     roi_none = ['Thailand', 'all']
     roi_list = [roi_none]
 
@@ -154,7 +155,7 @@ def lookup_external(dates, sat_src, bounds=None):
         sat_points += result
     return sat_points
 
-def lookup_db(dates, bounds=None, measurement=None):
+def lookup_db(dates, bounds=None, measurement=None, database=None):
     start = min(dates)
     end = max(dates)
     measurement = measurement or 'hotspots'
@@ -191,14 +192,9 @@ def lookup_data(
 
     # find requested date range for target
     if dateend is None:
-        datedelta = 1
-    else:
-        datedelta = (dateend - datestart).days
+        dateend = datestart
 
-    lookup_dates = [
-        datestart + datetime.timedelta(days=n)
-        for n in range(datedelta)
-    ]
+    lookup_dates = ranger.date_range(datestart, dateend, normalize=True)
     #print(lookup_dates)
 
 #    req_ext = []
