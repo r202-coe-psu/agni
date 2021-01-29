@@ -3,20 +3,21 @@ from flask import jsonify, send_from_directory
 
 from flask_wtf import FlaskForm
 from wtforms import (
-    Form, StringField, SelectField, IntegerField, FormField,
+    Form, StringField, SelectField, IntegerField, FormField, RadioField,
     ValidationError
+)
+from wtforms.validators import (
+    DataRequired
 )
 
 import pathlib
-import json
-import csv
 import datetime
 import calendar
 
 import geojson
-import requests
 import shapely
 import shapely.geometry
+import wtforms
 
 try:
     import importlib.resources as pkg_res
@@ -37,16 +38,6 @@ module = Blueprint('site', __name__)
 modis_hotspots = {}
 viirs_hotspots = {}
 
-INFLUX_HOST   = 'localhost'
-INFLUX_PORT   = '8086'
-INFLUX_UNAME  = "root"
-INFLUX_PASSWD = "root"
-INFLUX_BUCKET = 'hotspots'
-
-INFLUX_URL = 'http://{host}:{port}'.format(host=INFLUX_HOST, port=INFLUX_PORT)
-
-TODAY = datetime.datetime.today()
-
 def get_viirs_hotspots(date):
     return fetch_nrt.get_nrt_data(date, src=fetch_nrt.SRC_VIIRS)
 
@@ -66,10 +57,14 @@ YEAR_START = 2000
 YEAR_END = datetime.datetime.now().year
 FORMS_YEAR = [(y, y) for y in range(YEAR_START, YEAR_END+1)]
 
-class YearMonthSelect(FlaskForm):
-    class Meta:
-        csrf = False
-    
+FORMS_NRT_VALUES= [
+    ('count', 'Count'),
+    ('frp', 'FRP'),
+    ('bright_ti4', 'Temperature I-4'),
+    ('bright_ti5', 'Temperature I-5'),
+]
+
+class YearMonthSelect(Form):
     #year = SelectField(label='Year', choices=FORMS_YEAR)
     year = IntegerField(label='Year', default=YEAR_END)
     month = SelectField(label='Month', choices=FORMS_MONTHS)
@@ -78,11 +73,24 @@ class YearMonthSelect(FlaskForm):
         if not (YEAR_START <= field.data <= YEAR_END):
             raise ValidationError('Year outside available data range.')
 
+class HistoryControl(Form):
+    start = FormField(
+        YearMonthSelect, 
+        label='Time Start'
+    )
+    end = FormField(
+        YearMonthSelect,
+        label='Time End'
+    )
+    data_type = RadioField(
+        label="Data Type", 
+        choices=FORMS_NRT_VALUES,
+        validate_choice=True,
+        default='count'
+    )
+
 @module.route('/')
 def index():
-    global INFLUX_BUCKET
-    INFLUX_BUCKET = current_app.config.get("INFLUXDB_DATABASE", None)
-
     roi_none = ['Thailand', 'all']
     roi_list = [roi_none]
 
@@ -102,10 +110,12 @@ def index():
         roi_list.append([roi_label, roi_def])
     
     ym_select = YearMonthSelect()
+    history_controls = HistoryControl()
 
     return render_template('/site/index.html',
         roi_list=roi_list,
-        ym_select=ym_select
+        ym_select=ym_select,
+        hisctrl=history_controls
     )
 
 @module.route('/testyeet', methods=['post'])
@@ -195,24 +205,6 @@ def lookup_data(
         dateend = datestart
 
     lookup_dates = ranger.date_range(datestart, dateend, normalize=True)
-    #print(lookup_dates)
-
-#    req_ext = []
-#    req_db = []
-#    for date in lookup_dates:
-#        if TODAY - date <= datetime.timedelta(days=livedays):
-#            req_ext.append(date)
-#        else:
-#            req_db.append(date)
-#    #print([req_ext, req_db])
-#
-#    sat_points = []
-#
-#    if len(req_ext) > 0:
-#        sat_points += lookup_external(req_ext, sat_src, bounds)
-#    if len(req_db) > 0:
-#        sat_points += lookup_db(req_db, bounds)
-#    # fetch live first, then try db
 
     sat_points = lookup_db(lookup_dates, bounds)
 

@@ -186,10 +186,11 @@ def date_from_offset(offset, maxdelta=60):
 
     return today-delta
 
-def draw_roi_jq(resp, status, jqxhr):
-    leaflet.geoJSON(resp,{"style":ROI_STYLE}).addTo(roi_layer)
-
 def draw_roi(roi_name, clear=True):
+    def draw_roi_jq(resp, status, jqxhr):
+        g = leaflet.geoJSON(resp, {"style":ROI_STYLE}).addTo(roi_layer)
+        lmap.fitBounds(g.getBounds())
+
     if clear:
         roi_layer.clearLayers()
     if roi_name != 'all':
@@ -282,8 +283,6 @@ def on_drag_rect(ev):
     global zone_bounds
     bounds = ev.layer.getBounds().toBBoxString()
     zone_bounds = bounds
-
-from urllib.parse import urlencode
 
 @bind('#do-predict', 'click')
 def request_predict(ev):
@@ -397,24 +396,24 @@ def show_history(ev):
         }
     )
 
-@bind('#do-yeet', 'click')
-def yeet(ev):
-    data = jq('#ym-select').serialize()
-    def req_error(jqxhr, jq_error, text_error):
-        err_resp = jqxhr.responseJSON.to_dict()
-        for ek, ev in err_resp.items():
-            toast('{}: {}'.format(ek, ev), icon='error')
-    
-    jq.ajax(
-        "/testyeet",
-        {
-            'type': 'POST',
-            'dataType': 'json',
-            'data': data,
-            'success': lambda r, s, j: print(data),
-            'error': req_error
-        }
-    )
+#@bind('#do-yeet', 'click')
+#def yeet(ev):
+#    data = jq('#ym-select').serialize()
+#    def req_error(jqxhr, jq_error, text_error):
+#        err_resp = jqxhr.responseJSON.to_dict()
+#        for ek, ev in err_resp.items():
+#            toast('{}: {}'.format(ek, ev), icon='error')
+#    
+#    jq.ajax(
+#        "/testyeet",
+#        {
+#            'type': 'POST',
+#            'dataType': 'json',
+#            'data': data,
+#            'success': lambda r, s, j: print(data),
+#            'error': req_error
+#        }
+#    )
 
 
 lmap.on('editable:drawing:commit', on_draw_rect)

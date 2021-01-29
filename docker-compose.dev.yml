@@ -24,7 +24,6 @@ services:
         networks:
             - default
         environment:
-            # TBD: replace with entrypoint init script
             INFLUXDB_DB: "hotspots"
             INFLUXDB_USER: "agnitest"
             INFLUXDB_USER_PASSWORD: "agnitest"
@@ -38,7 +37,7 @@ services:
             - /etc/localtime:/etc/localtime:ro
         ports:
             - "8080:9000"
-        depends_on:
+        links:
             - mongodb
             - influxdb
         networks:
@@ -58,7 +57,7 @@ services:
            - .:/app
            - ../deployment:/deployment
            - /etc/localtime:/etc/localtime:ro
-       depends_on:
+       links:
            - mongodb
            - influxdb
        networks:

@@ -195,26 +195,34 @@
               </label> -->
           </div>
 
+          {% macro year_month(form) -%}
+          <div class="row">
+            <div class="input-field col s6">
+              {{ form.year() }}
+              <span class="helper-text">{{ form.year.label }}</span>
+            </div>
+            <div class="input-field col s6">
+              {{ form.month() }}
+              <span class="helper-text">{{ form.month.label }}</span>
+            </div>
+          </div>
+          {%- endmacro %}
+
           <div class="row subopts-mode" id="hist-mode-year">
-            <div class="input-field col s6">
-              <input type="number" id="target-year" min="2009" required="true">
-              <label for="lag-years">Year</label>
-            </div>
-            <div class="input-field col s6">
-              <input type="number" id="lag-years" min="0" class="validate">
-              <label for="lag-years">Offset</label>
-              <span class="helper-text" data-error="Invalid offset">
-              Offset from selected years
-              </span>
-            </div>
-            <div class="row">
-              <p>
-                <label for="use-frp">
-                  <input id="use-frp" type="checkbox" class="filled-in" />
-                  <span>Use FRP</span>
-                </label>
-              </p>
-            </div>
+            {{ hisctrl.start.label }}
+            {{ year_month(hisctrl.start) }}
+
+            {{ hisctrl.end.label }}
+            {{ year_month(hisctrl.end) }}
+
+            {{ hisctrl.data_type.label }}
+            {% for subfield in hisctrl.data_type %}
+            <p>
+              <label>
+                {{ subfield(class_="with-gap") }} <span>{{ subfield.label.text }}</span>
+              </label>
+            </p>
+            {% endfor %}
           </div>
 
           <div class="row subopts-mode" id="hist-mode-month">
@@ -224,23 +232,6 @@
           <div class="row right-align">
             <a class="waves-effect waves-light btn" id="do-history">Show</a>
           </div>
-        </form>
-        <form id="ym-select" action="#">
-          <div class="input-field col s6">
-            {{ ym_select.year() }}
-            {{ ym_select.year.label }} 
-          </div>
-          <div class="input-field col s6">
-            {{ ym_select.month() }}
-            {{ ym_select.month.label }}
-          </div>
-          <div class="row right-align">
-            <a class="waves-effect waves-light btn" id="do-yeet">Post</a>
-          </div>
-        </form>
-        {% for error in ym_select.errors.first_name %}
-          {{ error }}
-        {% endfor %}
         </form>
       </div> 
       <!--
