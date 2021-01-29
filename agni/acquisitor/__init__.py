@@ -53,7 +53,7 @@ class Server:
         self.running = True
         while(self.running):
             try:
-                self.fetcher.fetch()
+                self.fetcher.update_data()
                 logger.info('Fetch succeded')
                 self.sleep(self.SLEEP_LONG)
             except Exception as e:

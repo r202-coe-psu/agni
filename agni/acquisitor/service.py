@@ -64,7 +64,7 @@ class FetcherDatabase:
                 self.version = self.influxdb.ping()
                 logger.debug("Server Version {}".format(self.version))
                 return
-            except InfluxDBClientError:
+            except Exception:
                 time.sleep(delay)
 
 
@@ -111,7 +111,7 @@ class Fetcher:
         latest_time = ciso8601.parse_datetime_as_naive(data[0]['time'])
         return latest_time
 
-    def fetch(self):
+    def update_data(self):
         try:
             latest = self.influx_latest_time()
             logger.debug('Latest time: {}'.format(latest.isoformat()))
