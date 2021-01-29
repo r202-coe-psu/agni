@@ -17,13 +17,14 @@ services:
         volumes:
             - /etc/localtime:/etc/localtime:ro
             - ../deployment/agni/influxdb:/var/lib/influxdb
-            - ./agni-influxdb-config.conf:/etc/influxdb/influxdb.conf:ro
+            - ./influxdb-agni.conf:/etc/influxdb/influxdb.conf:ro
         # restart: always
         ports:
             - "8087:8086"
         networks:
             - default
         environment:
+            # TBD: replace with entrypoint init script
             INFLUXDB_DB: "hotspots"
             INFLUXDB_USER: "agnitest"
             INFLUXDB_USER_PASSWORD: "agnitest"
@@ -37,7 +38,7 @@ services:
             - /etc/localtime:/etc/localtime:ro
         ports:
             - "8080:9000"
-        links:
+        depends_on:
             - mongodb
             - influxdb
         networks:
@@ -57,7 +58,7 @@ services:
            - .:/app
            - ../deployment:/deployment
            - /etc/localtime:/etc/localtime:ro
-       links:
+       depends_on:
            - mongodb
            - influxdb
        networks:
