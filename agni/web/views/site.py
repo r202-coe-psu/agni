@@ -50,12 +50,11 @@ fetch_hotspots = {
 }
 
 FORMS_MONTHS = [
-    ( '{:02}'.format(m), datetime.datetime(2020, m, 1).strftime('%B') ) 
+    (m, datetime.datetime(2020, m, 1).strftime('%B')) 
     for m in range(1, 13)
 ]
 YEAR_START = 2000
 YEAR_END = datetime.datetime.now().year
-FORMS_YEAR = [(y, y) for y in range(YEAR_START, YEAR_END+1)]
 
 FORMS_NRT_VALUES= [
     ('count', 'Count'),
@@ -65,9 +64,8 @@ FORMS_NRT_VALUES= [
 ]
 
 class YearMonthSelect(Form):
-    #year = SelectField(label='Year', choices=FORMS_YEAR)
-    year = IntegerField(label='Year', default=YEAR_END)
-    month = SelectField(label='Month', choices=FORMS_MONTHS)
+    year = IntegerField(label='Year', default=2000)
+    month = SelectField(label='Month', choices=FORMS_MONTHS, default=1)
 
     def validate_year(form, field):
         if not (YEAR_START <= field.data <= YEAR_END):
@@ -109,13 +107,26 @@ def index():
         roi_def = pathlib.Path(roi_file).stem
         roi_list.append([roi_label, roi_def])
     
-    ym_select = YearMonthSelect()
+    now = datetime.datetime.now()
     history_controls = HistoryControl()
+    # set starting value
+    history_controls.start.process(
+        None, data=dict(
+            year=2000,
+            month=1
+        )
+    )
+    history_controls.end.process(
+        None, 
+        data=dict(
+            year=now.year,
+            month=now.month
+        )
+    )
 
     return render_template('/site/index.html',
         roi_list=roi_list,
-        ym_select=ym_select,
-        hisctrl=history_controls
+        hisctrl=history_controls,
     )
 
 @module.route('/testyeet', methods=['post'])

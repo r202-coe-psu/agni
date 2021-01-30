@@ -242,8 +242,9 @@ def switch_subopts(mode):
 @bind('#history-options', 'change')
 def history_options_changed(ev):
     if ev.target.attrs.get('name', None) == 'histmode':
-        value = document['history-options'].histmode.value
-        switch_subopts(mode=value)
+        pass
+        #value = document['history-options'].histmode.value
+        #switch_subopts(mode=value)
 
 predict_zone = 'zone-roi'
 zone_layer = leaflet.LayerGroup.new()
@@ -600,8 +601,8 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
 # get point for today
 def page_load_init(ev):
     query_ajax_cluster()
-    value = document['history-options'].histmode.value
-    switch_subopts(mode=value)
+    #value = document['history-options'].histmode.value
+    #switch_subopts(mode=value)
 
 lmap.on('load', page_load_init)
 
