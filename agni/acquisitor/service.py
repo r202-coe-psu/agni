@@ -6,10 +6,10 @@ import ciso8601
 
 import pandas as pd
 from influxdb import InfluxDBClient
-from influxdb.exceptions import InfluxDBClientError
 
 from ..acquisitor import fetch_nrt, filtering
 from ..util import nrtconv, timefmt, ranger
+from ..models import create_influxdb
 
 import logging
 logger = logging.getLogger(__name__)
@@ -17,26 +17,13 @@ logger = logging.getLogger(__name__)
 class FetcherDatabase:
     def __init__(self, settings):
         self.version = None
-
-        self.host = settings.get("INFLUXDB_HOST", 'localhost')
-        self.port = settings.get("INFLUXDB_PORT", '8086')
-        self.username = settings.get("INFLUXDB_USER", "root")
-        self.password = settings.get("INFLUXDB_PASSWORD", "root")
-        self.database = settings.get("INFLUXDB_DATABASE", None)
-
-        self.influxdb = InfluxDBClient(
-            host=self.host,
-            port=self.port,
-            username=self.username,
-            password=self.password,
-            database=self.database
-        )
+        self.influxdb = create_influxdb(settings)
     
     def write(
             self, data, measure, database=None,
             precision=None, batch_size=5000
     ):
-        database = database or self.database
+        #database = database or self.database
         pending = (
             nrtconv.to_influx_json(
                 point=p, measure=measure, timekey='time',
@@ -48,7 +35,7 @@ class FetcherDatabase:
         self.influxdb.write_points(
             pending,
             time_precision=precision,
-            database=database,
+            #database=database,
             batch_size=batch_size,
             protocol='json'
         )
