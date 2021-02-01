@@ -28,7 +28,7 @@ import pandas as pd
 
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv, ranger, timefmt
-from agni.models import influxdb
+from agni.models import init_influxdb
 from agni.processing import firecluster, firepredictor, heatmap
 from agni.web import regions
 
@@ -197,6 +197,7 @@ def lookup_db(dates, bounds=None, measurement=None, database=None):
 
     influxql_str += ';'
 
+    influxdb = init_influxdb(current_app.config)
     result = influxdb.query(influxql_str,
                             epoch=None,
                             database=database)

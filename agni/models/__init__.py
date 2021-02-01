@@ -13,11 +13,11 @@ from flask_mongoengine import MongoEngine
 from flask_influxdb import InfluxDB
 
 db = MongoEngine()
-influxdb = InfluxDB()
+#influxdb = InfluxDB()
 
 def init_db(app):
     db.init_app(app)
-    influxdb.init_app(app=app)
+    #influxdb.init_app(app=app)
 
 def init_mongoengine(settings):
     import mongoengine as me
@@ -33,3 +33,20 @@ def init_mongoengine(settings):
                username=username,
                password=password)
 
+def init_influxdb(settings):
+    from influxdb import InfluxDBClient
+    host = settings.get('INFLUXDB_HOST', 'localhost')
+    port = settings.get('INFLUXDB_PORT', '8086')
+    username = settings.get('INFLUXDB_USER', 'root')
+    password = settings.get('INFLUXDB_PASSWORD', 'root')
+    database = settings.get('INFLUXDB_DATABASE', None)
+
+    influxdb = InfluxDBClient(
+        host=host,
+        port=port,
+        username=username,
+        password=password,
+        database=database
+    )
+
+    return influxdb
