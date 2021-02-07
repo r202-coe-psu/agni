@@ -21,7 +21,9 @@ class NRTHeatmap:
     UTM_TF = _UTM_TF
     GPS_TF = _GPS_TF
     def __init__(self, step=None, bounds=None):
-        self.grid = None
+        self.__weighted_avg = None
+        self.weights = None
+        self.counts = None
         self.edges = None
         self.step = step
         self.bounds = bounds
@@ -69,7 +71,7 @@ class NRTHeatmap:
         xdata, ydata = self.UTM_TF.transform(xdata.to_list(), ydata.to_list())
         return xdata, ydata
 
-    def fit(self, data, xkey, ykey, wkey=None, density=False):
+    def fit(self, data, xkey, ykey, wkey=None):
         """ fit data to make grid """
         if self.bounds is None:
             raise ValueError("bounding area unset")
@@ -77,17 +79,45 @@ class NRTHeatmap:
         data_ = pd.DataFrame(data)
 
         weights = wkey is not None
-        weights_data = None
-        if weights:
-            weights_data = data_[wkey]
 
         xdata, ydata = self._prepare_data(data_, xkey=xkey, ykey=ykey)
+        self._fit_count(xdata=xdata, ydata=ydata)
+
+        if weights:
+            wdata = data_[wkey]
+            self._fit_weight(xdata=xdata, ydata=ydata, wdata=wdata)
+            self._calc_weighted_average()
+        else:
+            self.weights = None
+        
+    
+    def _fit_count(self, xdata, ydata):
         count, xedge, yedge = np.histogram2d(
             x=xdata, y=ydata, bins=self.edges,
-            weights=(weights_data if weights else None),
-            density=density
         )
-        self.grid = (count.T).astype(float)
+        self.counts = (count.T).astype(int)
+    
+    def _fit_weight(self, xdata, ydata, wdata):
+        weight_grid, xedge, yedge = np.histogram2d(
+            x=xdata, y=ydata, bins=self.edges,
+            weights=wdata
+        )
+        self.weights = (weight_grid.T).astype(float)
+
+    def _calc_weighted_average(self):
+        wg = np.divide(
+            self.weights, self.counts,
+            out=np.zeros_like(self.counts.astype(float)),
+            where=(self.counts != 0)
+        )
+        wg[np.isnan(wg)] = 0
+        self.__weighted_avg = wg
+
+    @property
+    def grid(self):
+        if self.weights is not None:
+            return self.__weighted_avg
+        return self.counts
 
     def _create_cell_rect(self, x, y):
         elons = self.edges[0]
@@ -99,14 +129,28 @@ class NRTHeatmap:
         bounds = [float(x) for x in [west, south, east, north]]
         return gjtool.rect(*bounds) 
 
-    def repr_geojson(self, keep_zero=True):
+    def min(self, nonzero=True):
+        g = self.grid
+        return float(np.min(g[np.nonzero(g)]))
+    
+    def max(self, nonzero=True):
+        g = self.grid
+        return float(np.max(g[np.nonzero(g)]))
+
+    def repr_geojson(self, keep_zero=False, mode='count'):
         elons = self.edges[0]
         elats = self.edges[1]
+
+        modegrid = {
+            'count': self.counts,
+            'sum': self.weights,
+            'average': self.grid
+        }
 
         out_rects = []
         for x in range(len(elons)-1):
             for y in range(len(elats)-1):
-                data = float(self.grid[y, x])
+                data = float(modegrid[mode][y, x])
                 if not keep_zero and data == 0:
                     continue
 
@@ -116,7 +160,7 @@ class NRTHeatmap:
                 feature = geojson.Feature(
                     geometry=rect,
                     properties={
-                        'count': data,
+                        'value': data,
                         'grid_index': [int(y), int(x)]
                     },
                 )
@@ -125,9 +169,10 @@ class NRTHeatmap:
 
         out_features = geojson.FeatureCollection(out_rects)
         out_features['info'] = {
-            'min_count': float(self.grid.min()),
-            'max_count': float(self.grid.max()),
-            'shape': list(self.grid.shape)
+            'min_value': self.min(),
+            'max_value': self.max(),
+            'shape': list(self.grid.shape),
+            'mode': mode
         }
         return out_features
 

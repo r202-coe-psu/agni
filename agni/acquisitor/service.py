@@ -40,10 +40,13 @@ class FetcherDatabase:
             protocol='json'
         )
 
-    def read(self, query):
+    def read(self, query, return_df=False):
         result = self.influxdb.query(query)
-        result = list(result.get_points())
-        return result
+        result_list = list(result.get_points())
+        if return_df:
+            result_df = pd.DataFrame(result_list)
+            return result_df
+        return result_list
     
     def wait_server(self, delay=10):
         while True:
@@ -94,7 +97,7 @@ class Fetcher:
             order by time desc
             limit 1 ;
         """.format(measurement="hotspots")
-        data = self.influxdb.read(ql_str)
+        data = self.influxdb.read(ql_str, return_df=False)
         latest_time = ciso8601.parse_datetime_as_naive(data[0]['time'])
         return latest_time
 

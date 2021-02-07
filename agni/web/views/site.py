@@ -56,12 +56,20 @@ FORMS_MONTHS = [
 YEAR_START = 2000
 YEAR_END = datetime.datetime.now().year
 
-FORMS_NRT_VALUES= [
+FORMS_NRT_VALUES = [
     ('count', 'Count'),
     ('frp', 'FRP'),
-    #('bright_ti4', 'Temperature I-4'),
-    #('bright_ti5', 'Temperature I-5'),
+    ('bright_ti4', 'Temperature I-4'),
+    ('bright_ti5', 'Temperature I-5'),
 ]
+
+ZERO_K_CELSIUS = -273.15
+
+FORMS_UNITS = {
+    'frp': 'mW',
+    'bright_ti4': 'K',
+    'bright_ti5': 'K',
+}
 
 class YearMonthSelect(Form):
     class Meta:
@@ -358,7 +366,6 @@ def get_prediction():
     return jsonify(result_geojson)
 
 @module.route('/history/<region>/<data_type>', methods=['POST'])
-#@module.route('/history/<region>/<int:year>/<int:month>')
 def get_region_histogram(region, data_type=None):
     form = HistoryControlForm()
     if form.validate_on_submit():
@@ -385,18 +392,27 @@ def get_region_histogram(region, data_type=None):
     data = lookup_data(datestart=date_start, dateend=date_end, bounds=roi_bbox)
     if data_type == 'count':
         weight = None
+        repr_mode = 'count'
+        
     else:
         weight = data_type
-
-    density = 'bright' in data_type
+        repr_mode = 'average'
+    
+    try:
+        val_unit = FORMS_UNITS[data_type]
+    except KeyError:
+        val_unit = ''
 
     hmap = heatmap.NRTHeatmap(step=375, bounds=roi_bbox)
     hmap.fit(
         data, 'longitude', 'latitude',
-        wkey=weight, density=density
+        wkey=weight
     )
 
-    hmap_gj = hmap.repr_geojson(keep_zero=False)
-    hmap_gj['info'].update(dict(region=region))
+    hmap_gj = hmap.repr_geojson(keep_zero=False, mode=repr_mode)
+    hmap_gj['info'].update({
+        'region': region,
+        'value_unit': val_unit
+    })
 
     return jsonify(hmap_gj)

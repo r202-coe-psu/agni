@@ -348,47 +348,49 @@ def show_history(ev):
 
     data_type = form_dict['data_type']
 
+    def value_map(value, in_bounds, out_bounds):
+        in_min, in_max = in_bounds
+        out_min, out_max = out_bounds
+        return (value-in_min) * (out_max-out_min) / (in_max-in_min) + out_min
+
     def histogram_cell_style(feature, input_bounds, output_bounds=[0.1, 0.5]):
-        value = feature.properties.count
+        value = feature.properties.value
 
-        lower = output_bounds[0]
-        upper = output_bounds[1]
-        output_range = upper - lower
-
-        min_val, max_val = input_bounds
-        input_range = max_val - min_val
-
-        base_opacity = lower
         base_cell = CELLSTYLE['FIRE']
-
-        #slope = output_range / input_range
 
         style = dict(
             base_cell,
-            fillOpacity=(
-                base_opacity + output_range*(value-min_val)/input_range
-            )
+            fillOpacity=value_map(value, input_bounds, output_bounds)
         )
         return style
     
-    def histogram_cell_features(feature, layer):
-        features_str = [
-            "<b>{}</b>: {}".format(k, v)
-            for k, v in feature.properties.to_dict().items()
-        ]
+    def histogram_cell_features(feature, layer, unit=''):
+        features_str = []
+        for k, v in feature.properties.to_dict().items():
+            if unit != '' and k == 'value':
+                kv_str = "<b>{}</b>: {} {}".format(k, v, unit)
+            else:
+                kv_str = "<b>{}</b>: {}".format(k, v)
+            features_str.append(kv_str)
+        
         layer.bindPopup('<br />'.join(features_str))
 
     def req_success(resp, status, jqxhr):
         if jqxhr.status == 200:
-            max_val = resp.info.max_count
-            min_val = resp.info.min_count
+            min_val = resp.info.min_value
+            max_val = resp.info.max_value
+            unit = resp.info.value_unit
             bounds = [min_val, max_val]
+            print(bounds, max_val-min_val)
 
             history_layer.clearLayers()
             leaflet.geoJSON(
-                resp, {
+                resp, 
+                {
                     'style': lambda s: histogram_cell_style(s, bounds),
-                    'onEachFeature': histogram_cell_features
+                    'onEachFeature': lambda f, l: histogram_cell_features(
+                        f, l, unit
+                    )
                 }
             ).addTo(history_layer)
             history_layer.addTo(lmap)
