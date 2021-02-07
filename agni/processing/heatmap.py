@@ -87,7 +87,7 @@ class NRTHeatmap:
             weights=(weights_data if weights else None),
             density=density
         )
-        self.grid = (count.T).astype(int)
+        self.grid = (count.T).astype(float)
 
     def _create_cell_rect(self, x, y):
         elons = self.edges[0]
@@ -96,7 +96,8 @@ class NRTHeatmap:
         west, east = elons[x:x+2]
         south, north = elats[y:y+2]
 
-        return gjtool.rect(west, south, east, north) 
+        bounds = [float(x) for x in [west, south, east, north]]
+        return gjtool.rect(*bounds) 
 
     def repr_geojson(self, keep_zero=True):
         elons = self.edges[0]
@@ -105,7 +106,7 @@ class NRTHeatmap:
         out_rects = []
         for x in range(len(elons)-1):
             for y in range(len(elats)-1):
-                data = int(self.grid[y, x])
+                data = float(self.grid[y, x])
                 if not keep_zero and data == 0:
                     continue
 
@@ -116,7 +117,7 @@ class NRTHeatmap:
                     geometry=rect,
                     properties={
                         'count': data,
-                        'grid_index': [y, x]
+                        'grid_index': [int(y), int(x)]
                     },
                 )
 
@@ -124,7 +125,8 @@ class NRTHeatmap:
 
         out_features = geojson.FeatureCollection(out_rects)
         out_features['info'] = {
-            'max_count': int(self.grid.max()),
+            'min_count': float(self.grid.min()),
+            'max_count': float(self.grid.max()),
             'shape': list(self.grid.shape)
         }
         return out_features

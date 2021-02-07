@@ -1,5 +1,5 @@
 from browser import document, window, ajax, bind, timer
-import javascript
+import javascript as js
 import datetime
 
 leaflet = window.L
@@ -7,7 +7,7 @@ turf = window.turf
 jq = window.jQuery
 mcss = window.M
 
-_jsdate_today = javascript.Date.new()
+_jsdate_today = js.Date.new()
 
 BASE_MARKER_OPTS = {
     "stroke": False,
@@ -341,42 +341,55 @@ def show_history(ev):
     if roi_name == 'all':
         toast(text="Must pick a region", icon="error")
         return
+    
+    form_serialize = jq('#history-options').serialize()
+    form_data = window.FormData.new(document['history-options'])
+    form_dict = dict(x for x in form_data.entries())
 
-    year = int(document['target-year'].value)
-    frp = document["use-frp"].checked
-    lags_input = document['lag-years']
-    if 'invalid' in lags_input.class_name:
-        toast(text="Offset must be higher than zero.", icon='error')
-        return
-    try:
-        lags = int(lags_input.value)
-    except ValueError:
-        lags = 0
+    data_type = form_dict['data_type']
 
-    def histogram_cell_style(feature, max_count, lower=None, upper=None):
-        count = feature.properties.count
-        base_cell = CELLSTYLE['FIRE']
-        lower = lower or 0.1
-        upper = upper or 0.5
+    def histogram_cell_style(feature, input_bounds, output_bounds=[0.1, 0.5]):
+        value = feature.properties.count
 
-        opacity_range = upper - lower
+        lower = output_bounds[0]
+        upper = output_bounds[1]
+        output_range = upper - lower
+
+        min_val, max_val = input_bounds
+        input_range = max_val - min_val
+
         base_opacity = lower
+        base_cell = CELLSTYLE['FIRE']
+
+        #slope = output_range / input_range
 
         style = dict(
             base_cell,
-            fillOpacity=(base_opacity
-                         + (opacity_range * count / max_count))
+            fillOpacity=(
+                base_opacity + output_range*(value-min_val)/input_range
+            )
         )
-
         return style
+    
+    def histogram_cell_features(feature, layer):
+        features_str = [
+            "<b>{}</b>: {}".format(k, v)
+            for k, v in feature.properties.to_dict().items()
+        ]
+        layer.bindPopup('<br />'.join(features_str))
 
     def req_success(resp, status, jqxhr):
         if jqxhr.status == 200:
-            max_count = resp.info.max_count
+            max_val = resp.info.max_count
+            min_val = resp.info.min_count
+            bounds = [min_val, max_val]
 
             history_layer.clearLayers()
             leaflet.geoJSON(
-                resp, {'style': lambda s: histogram_cell_style(s, max_count)}
+                resp, {
+                    'style': lambda s: histogram_cell_style(s, bounds),
+                    'onEachFeature': histogram_cell_features
+                }
             ).addTo(history_layer)
             history_layer.addTo(lmap)
 
@@ -385,17 +398,18 @@ def show_history(ev):
               icon='error')
 
     jq.ajax(
-        "/history/{region}/{year}".format(region=roi_name, year=year),
+        "/history/{region}/{data_type}"\
+            .format(region=roi_name, data_type=data_type),
         {
+            'type': 'POST',
             'dataType': 'json',
-            'data': dict(
-                lags=lags,
-                frp=frp
-            ),
+            'data': form_serialize,
             'success': req_success,
             'error': req_error
         }
     )
+
+    ev.preventDefault()
 
 #@bind('#do-yeet', 'click')
 #def yeet(ev):
@@ -470,7 +484,7 @@ def cluster_data(resp, status, jqxhr):
         features_dict = feature.properties.to_dict()
 
         # format time for display
-        utc_time = javascript.Date.new(features_dict['time'])
+        utc_time = js.Date.new(features_dict['time'])
         features_dict['time'] = utc_time.toLocaleString()
         # format infos
         features_str = [

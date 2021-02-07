@@ -52,3 +52,6 @@ def format_julian(date):
 
 def parse_julian(datestr):
     return datetime.datetime.strptime(datestr, JULIAN_FMT)
+
+def normalize(dt: datetime.datetime):
+    return dt.replace(hour=0, minute=0, second=0, microsecond=0)

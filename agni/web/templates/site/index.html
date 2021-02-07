@@ -136,7 +136,7 @@
     <div id="history-controls">
       <div class="section">
         <form action="#" id="history-options">
-
+          {{ hisctrl.csrf_token }}
           {% macro year_month(form) -%}
           <div class="row valign-wrapper">
             <span class="inline col s4">{{ form.label.text }}</span>

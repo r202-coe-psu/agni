@@ -59,11 +59,14 @@ YEAR_END = datetime.datetime.now().year
 FORMS_NRT_VALUES= [
     ('count', 'Count'),
     ('frp', 'FRP'),
-    ('bright_ti4', 'Temperature I-4'),
-    ('bright_ti5', 'Temperature I-5'),
+    #('bright_ti4', 'Temperature I-4'),
+    #('bright_ti5', 'Temperature I-5'),
 ]
 
 class YearMonthSelect(Form):
+    class Meta:
+        csrf = False
+
     year = IntegerField(label='Year', default=2000)
     month = SelectField(label='Month', choices=FORMS_MONTHS, default=1)
 
@@ -71,7 +74,10 @@ class YearMonthSelect(Form):
         if not (YEAR_START <= field.data <= YEAR_END):
             raise ValidationError('Year outside available data range.')
 
-class HistoryControl(Form):
+class HistoryControlForm(FlaskForm):
+    class Meta:
+        csrf = False
+
     start = FormField(
         YearMonthSelect, 
         label='Time Start'
@@ -108,7 +114,7 @@ def index():
         roi_list.append([roi_label, roi_def])
     
     now = datetime.datetime.now()
-    history_controls = HistoryControl()
+    history_controls = HistoryControlForm()
     # set starting value
     history_controls.start.process(
         None, data=dict(
@@ -347,27 +353,26 @@ def get_prediction():
         current_data, prev_data, area, 375
     )
 
-
     result_geojson = firepredictor.firegrid_geojson(p_grid, p_edges)
 
     return jsonify(result_geojson)
 
-@module.route('/history/<region>/<int:year>')
-@module.route('/history/<region>/<int:year>/<int:month>')
-def get_region_histogram(region, year, month=None):
-    queryargs = request.args
-    lags = queryargs.get('lags', type=int, default=0)
-    frp = queryargs.get('frp', type=str, default='false')
-
-    if month is None:
-        start = datetime.datetime(year-lags, 1, 1)
-        end = datetime.datetime(year+1, 1, 1)
+@module.route('/history/<region>/<data_type>', methods=['POST'])
+#@module.route('/history/<region>/<int:year>/<int:month>')
+def get_region_histogram(region, data_type=None):
+    form = HistoryControlForm()
+    if form.validate_on_submit():
+        start, end = (
+            [int(n) for n in (form.start.year.data, form.start.month.data)],
+            [int(n) for n in (form.end.year.data, form.end.month.data)],
+        )
+        date_start = datetime.datetime(*start, 1)
+        date_end = datetime.datetime(*end, 1)
+        date_start = timefmt.normalize(date_start)
+        date_end = timefmt.normalize(date_end)
     else:
-        start = datetime.datetime(year, month, 1)
-        last_day = calendar.monthrange(year, month)[1]
-        end = (datetime.datetime(year, month, last_day)
-               + datetime.timedelta(days=1))
-
+        return "Malformed input", 400
+    
     #print([start, end])
     # get region bbox for faster processing, no db yet
     roi_str = pkg_res.read_text(regions, "{}.geojson".format(region))
@@ -377,13 +382,18 @@ def get_region_histogram(region, year, month=None):
     ).buffer(0)
     roi_bbox = roi_shape.bounds
 
-    data = lookup_data(datestart=start, dateend=end, bounds=roi_bbox)
-    weights = frp.casefold()=='true' and 'frp' or None
-    
+    data = lookup_data(datestart=date_start, dateend=date_end, bounds=roi_bbox)
+    if data_type == 'count':
+        weight = None
+    else:
+        weight = data_type
+
+    density = 'bright' in data_type
+
     hmap = heatmap.NRTHeatmap(step=375, bounds=roi_bbox)
     hmap.fit(
         data, 'longitude', 'latitude',
-        wkey=weights
+        wkey=weight, density=density
     )
 
     hmap_gj = hmap.repr_geojson(keep_zero=False)
