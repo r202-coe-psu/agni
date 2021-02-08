@@ -66,7 +66,7 @@ FORMS_NRT_VALUES = [
 ZERO_K_CELSIUS = -273.15
 
 FORMS_UNITS = {
-    'frp': 'mW',
+    'frp': 'MW',
     'bright_ti4': 'K',
     'bright_ti5': 'K',
 }
