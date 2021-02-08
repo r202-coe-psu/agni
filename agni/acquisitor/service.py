@@ -6,6 +6,7 @@ import ciso8601
 
 import pandas as pd
 from influxdb import InfluxDBClient
+import requests
 
 from ..acquisitor import fetch_nrt, filtering
 from ..util import nrtconv, timefmt, ranger
@@ -85,9 +86,9 @@ class Fetcher:
         newer = data[data[timekey] > min_time]
         return newer
 
-    def fetch_live_data(self, date, region=None):
-        result = fetch_nrt.get_nrt_data(date=date)
-        if region is not None:
+    def fetch_live_data(self, date, region=None, silent=False):
+        result = fetch_nrt.get_nrt_data(date=date, silent_404=silent)
+        if region is not None and len(result) > 0:
             result = filtering.filter_bbox(result, region)
         return result
 
@@ -125,12 +126,24 @@ class Fetcher:
         )
         for date in fetch_dates:
             logger.debug('Fetching: {}'.format(date.isoformat()))
-            data = self.fetch_live_data(date, region=filtering.TH_BBOX_EXACT)
-            all_data += data
+            try:
+                data = self.fetch_live_data(
+                    date, region=filtering.TH_BBOX_EXACT, silent=False
+                )
+                all_data += data
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 404:
+                    logger.warn("Server reported {} for file at {}".format(
+                        e.response.status_code,
+                        e.response.url
+                    ))
+                else:
+                    raise e
+                break
 
-        #all_data_df = self.process_data_time_us(all_data, timekey='time')
-        all_data_df = pd.DataFrame(all_data)
-        new_data = self.filter_newer_data(all_data_df, min_time=fetch_start)
-        logger.debug('All data length: {}'.format(len(all_data)))
-        logger.debug('New data length: {}'.format(len(new_data)))
-        self.influxdb.write(new_data, measure='hotspots', database='hotspots')
+        if len(all_data) > 0:
+            all_data_df = pd.DataFrame(all_data)
+            new_data = self.filter_newer_data(all_data_df, min_time=fetch_start)
+            logger.debug('All data length: {}'.format(len(all_data)))
+            logger.debug('New data length: {}'.format(len(new_data)))
+            self.influxdb.write(new_data, measure='hotspots', database='hotspots')

@@ -1,6 +1,7 @@
 import datetime
 import csv
 import io
+import warnings
 
 import requests
 import pandas as pd
@@ -102,6 +103,10 @@ def process_csv_pandas(raw_csv, as_dict=False):
         }
     )
 
+    # no data yet, but file header exist
+    if len(hotspots) == 0:
+        return [] if as_dict else hotspots
+    
     # dedupe time to usec offset
     time_dupe = hotspots.groupby('time').cumcount()
     hotspots['time'] = (hotspots['time']
@@ -140,15 +145,18 @@ def request_nrt(date=None, src=SRC_VIIRS, token=TOKEN):
     )
     return r
 
-def get_nrt_data(date=None, src=None):
-    if src is None:
-        src = SRC_VIIRS
+def get_nrt_data(date=None, src=None, silent_404=True):
+    src = src or SRC_VIIRS
 
+    hotspots = []
     req = request_nrt(date, src)
-
-    req.raise_for_status()
-    hotspots = {}
-    hotspots = process_csv(req.text)
+    if req.ok:
+        hotspots = process_csv_pandas(req.text, as_dict=True)
+    elif req.status_code == 404 and silent_404:
+        warn_str = 'Server reported 404 for file {}.'.format(req.url)
+        warnings.warn(warn_str)
+    else:
+        req.raise_for_status()
 
     return hotspots
 

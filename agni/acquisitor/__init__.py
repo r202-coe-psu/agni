@@ -54,7 +54,7 @@ class Server:
         while(self.running):
             try:
                 self.fetcher.update_data()
-                logger.info('Fetch succeded')
+                logger.info('Fetch finished.')
                 self.sleep(self.SLEEP_LONG)
             except Exception as e:
                 logger.exception(e)
