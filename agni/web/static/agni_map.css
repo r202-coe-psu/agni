@@ -1,51 +1,58 @@
-html, body, main, #main-row {
-  width: 100%;
+html body main #main-row {
+	width: 100%;
 }
 
 body {
-  overflow: hidden;
+	overflow: hidden;
 }
 
 head {
-  padding: 0;
+	padding: 0;
 }
 
 .fixed-height {
-  height: 100%;
-  width: 100vh;
+	height: 100%;
+	width: 100vh;
 }
 
 .container {
-  margin: 0 auto;
-  max-width: 100vw;
-  width: 90% !important;
+	margin: 0 auto;
+	max-width: 100vw;
+	width: 90% !important;
 }
 
 #main-row {
-  display: flex;
-  height: calc(100vh - 64px);
-  overflow: hidden;
+	/*display: flex;*/
+	height: calc(100vh - 64px);
+	overflow: hidden;
 }
 
 #mapdisplay {
-  height: 100%;
+	height: 100%;
+}
+
+@media screen and (max-width: 600px){
+	#mapdisplay {
+		height: 50%;
+	}
 }
 
 #mapcontrols {
-  padding-top: 1em;
-  overflow: auto;
-  scrollbar-width: thin;
+	padding-top: 1em;
+	overflow: auto;
+	scrollbar-width: thin;
 }
 
 .fullwidth-btn {
-    width: 100%;
+	width: 100%;
 }
+
 .toast-text i {
-  margin-right: 1ex;
+	margin-right: 1ex;
 }
 /*
 .switch {
-    padding:5px 5px;
-    margin: 10px;
+	padding:5px 5px;
+	margin: 10px;
 }
 */

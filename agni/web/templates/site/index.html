@@ -21,9 +21,11 @@
 
 {# barecontent block sits outside of the materialize css container #}
 {% block barecontent %}
-<div class="row fixed-height" id="main-row">
+<div class="row" id="main-row">
+  <!-- map -->
+  <div class="col s12 l9 push-l3" id="mapdisplay"></div>
   <!-- map controls -->
-  <div class="col s12 l3" id="mapcontrols">
+  <div class="col s12 l3 pull-l9" id="mapcontrols">
     <div class="container">
       <div>
         <form action="#" id="region-select">
@@ -142,8 +144,7 @@
       </div>
     </div>
   </div>
-  <!-- map -->
-  <div class="col s12 l9" id="mapdisplay"></div>
+  
 </div>
 
 <script type="text/python" src="{{ url_for('static', filename='agni_map.bry.py') }}">
