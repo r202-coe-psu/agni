@@ -1,17 +1,11 @@
-from agni.util import timefmt
 import time
 import queue
 import datetime
 
-from contextlib import contextmanager
-
-import pandas as pd
-import ciso8601
-import pytz
-
 from influxdb import InfluxDBClient
 
 from . import service
+from ..util import timefmt
 
 #from .. import models
 #from ..models import influxdb
@@ -34,8 +28,9 @@ class Server:
         )
         # models.init_mongoengine(
         #         settings)
-        self.fetch_db = service.FetcherDatabase(settings)
-        self.fetcher = service.Fetcher(self.fetch_db)
+        #self.fetch_db = influxdb.init_db(settings=settings)
+        self.fetcher = service.Fetcher(settings)
+        self.fetch_db = self.fetcher.influxdb
     
 
     def sleep(self, duration: datetime.timedelta):

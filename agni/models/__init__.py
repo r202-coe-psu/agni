@@ -10,15 +10,14 @@ __all__ = [
 
 
 from flask_mongoengine import MongoEngine
+from ..database import HotspotDatabase, create_influxdb
 
 db = MongoEngine()
-influxdb = None
+influxdb = HotspotDatabase()
 
 def init_db(app):
     db.init_app(app)
-    global influxdb
-    if influxdb is None:
-        influxdb = create_influxdb(app.config)
+    influxdb.init_db(app.config)
 
 def init_mongoengine(settings):
     import mongoengine as me
@@ -33,18 +32,3 @@ def init_mongoengine(settings):
                port=port,
                username=username,
                password=password)
-
-def create_influxdb(settings):
-    from influxdb import InfluxDBClient
-    host = settings.get('INFLUXDB_HOST', 'localhost')
-    port = settings.get('INFLUXDB_PORT', '8086')
-    username = settings.get('INFLUXDB_USER', 'root')
-    password = settings.get('INFLUXDB_PASSWORD', 'root')
-    database = settings.get('INFLUXDB_DATABASE', None)
-
-    influxdb = InfluxDBClient(host=host,
-                              port=port,
-                              username=username,
-                              password=password,
-                              database=database)
-    return influxdb

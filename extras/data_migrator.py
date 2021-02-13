@@ -2,7 +2,8 @@ import os
 from os import listdir
 from os.path import isfile, join
 
-from agni.acquisitor import fetch_nrt, service 
+from agni.acquisitor import fetch_nrt
+from agni.database import HotspotDatabase
 
 FILEPATH = '/home/tk3/viirs-data'
 
@@ -12,7 +13,7 @@ csv_file = [f for f in onlyfiles if '.csv' in f]
 settings = {
     'INFLUXDB_PORT': 8087
 }
-db = service.FetcherDatabase(settings)
+db = HotspotDatabase(settings)
 db.wait_server()
 
 print(csv_file)

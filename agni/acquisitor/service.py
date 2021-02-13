@@ -5,66 +5,21 @@ import pytz
 import ciso8601
 
 import pandas as pd
-from influxdb import InfluxDBClient
 import requests
 
 from ..acquisitor import fetch_nrt, filtering
-from ..util import nrtconv, timefmt, ranger
-from ..models import create_influxdb
+from ..util import timefmt, ranger
+from ..database import HotspotDatabase
 
 import logging
 logger = logging.getLogger(__name__)
-
-class FetcherDatabase:
-    def __init__(self, settings):
-        self.version = None
-        self.influxdb = create_influxdb(settings)
-    
-    def write(
-            self, data, measure, database=None,
-            precision=None, batch_size=5000
-    ):
-        #database = database or self.database
-        pending = (
-            nrtconv.to_influx_json(
-                point=p, measure=measure, timekey='time',
-                auto_tags=True, skip=['acq_date', 'acq_time']
-            )
-            for _, p in data.iterrows()
-        )
-
-        self.influxdb.write_points(
-            pending,
-            time_precision=precision,
-            #database=database,
-            batch_size=batch_size,
-            protocol='json'
-        )
-
-    def read(self, query, return_df=False):
-        result = self.influxdb.query(query)
-        result_list = list(result.get_points())
-        if return_df:
-            result_df = pd.DataFrame(result_list)
-            return result_df
-        return result_list
-    
-    def wait_server(self, delay=10):
-        while True:
-            try:
-                self.version = self.influxdb.ping()
-                logger.debug("Server Version {}".format(self.version))
-                return
-            except Exception:
-                time.sleep(delay)
-
 
 class Fetcher:
     LOCAL_TZ = pytz.timezone('Asia/Bangkok')
     MAX_DELTA = datetime.timedelta(days=60)
 
-    def __init__(self, influxdb):
-        self.influxdb = influxdb
+    def __init__(self, settings):
+        self.influxdb = HotspotDatabase(settings)
     
     def oldest_data_date(self):
         oldest = self.current_time(utc=True) - self.MAX_DELTA
