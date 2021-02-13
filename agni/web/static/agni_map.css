@@ -22,7 +22,7 @@ head {
 }
 
 #main-row {
-	/*display: flex;*/
+	display: flex;
 	height: calc(100vh - 64px);
 	overflow: hidden;
 }
@@ -32,8 +32,8 @@ head {
 }
 
 @media screen and (max-width: 600px){
-	#mapdisplay {
-		height: 50%;
+	#main-row {
+		flex-direction: column;
 	}
 }
 
