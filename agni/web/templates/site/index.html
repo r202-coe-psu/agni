@@ -20,7 +20,10 @@
 
 html, body, main, #main-row {
   width: 100%;
-  height: calc(100vh - 64px);
+}
+
+body {
+  overflow: hidden;
 }
 
 head {
@@ -40,11 +43,12 @@ head {
 
 #main-row {
   display: flex;
+  height: calc(100vh - 64px);
+  overflow: hidden;
 }
 
 #mapdisplay {
   height: 100%;
-  overflow: hidden;
 }
 
 #mapcontrols {
@@ -192,8 +196,7 @@ head {
     </div>
   </div>
   <!-- map -->
-  <div class="col s12 l9" id="mapdisplay">
-  </div>
+  <div class="col s12 l9" id="mapdisplay"></div>
 </div>
 
 <script type="text/python" src="{{ url_for('static', filename='agni_map.bry.py') }}">
