@@ -605,8 +605,8 @@ base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
     "attribution": ( 
         '&copy; '
-        '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        ' contributors'
+        '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
+        'contributors'
     )
 })
 
