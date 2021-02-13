@@ -10,15 +10,12 @@ __all__ = [
 
 
 from flask_mongoengine import MongoEngine
-from influxdb import InfluxDBClient
 
 db = MongoEngine()
-#influxdb = InfluxDB()
 influxdb = None
 
 def init_db(app):
     db.init_app(app)
-    #influxdb.init_app(app=app)
     global influxdb
     if influxdb is None:
         influxdb = create_influxdb(app.config)

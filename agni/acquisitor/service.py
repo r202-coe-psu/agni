@@ -83,6 +83,7 @@ class Fetcher:
         return data_df
 
     def filter_newer_data(self, data, min_time, timekey='time'):
+        min_time = min_time.replace(microsecond=0)
         newer = data[data[timekey] > min_time]
         return newer
 
