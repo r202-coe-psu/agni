@@ -347,6 +347,7 @@ def show_history(ev):
     form_dict = dict(x for x in form_data.entries())
 
     data_type = form_dict['data_type']
+    csrf_token = form_dict['csrf_token']
 
     def value_map(value, in_bounds, out_bounds):
         in_min, in_max = in_bounds
@@ -399,9 +400,10 @@ def show_history(ev):
         toast("History: Error '{}': {}".format(jq_error, text_error),
               icon='error')
 
+    wtforms_csrf_inject(csrf_token)
     jq.ajax(
-        "/history/{region}/{data_type}"\
-            .format(region=roi_name, data_type=data_type),
+        "/history/{region}/{data_type}".format(
+            region=roi_name, data_type=data_type),
         {
             'type': 'POST',
             'dataType': 'json',
@@ -412,26 +414,6 @@ def show_history(ev):
     )
 
     ev.preventDefault()
-
-#@bind('#do-yeet', 'click')
-#def yeet(ev):
-#    data = jq('#ym-select').serialize()
-#    def req_error(jqxhr, jq_error, text_error):
-#        err_resp = jqxhr.responseJSON.to_dict()
-#        for ek, ev in err_resp.items():
-#            toast('{}: {}'.format(ek, ev), icon='error')
-#    
-#    jq.ajax(
-#        "/testyeet",
-#        {
-#            'type': 'POST',
-#            'dataType': 'json',
-#            'data': data,
-#            'success': lambda r, s, j: print(data),
-#            'error': req_error
-#        }
-#    )
-
 
 lmap.on('editable:drawing:commit', on_draw_rect)
 lmap.on('editable:drag', on_drag_rect)
@@ -522,25 +504,25 @@ def cluster_data(resp, status, jqxhr):
 
     enable_input(True)
 
-def query_error(jqxhr, errortype, text):
-    #document['hotspot-info'].text = "E{}: {}".format(jqxhr.status, text)
-    toast("Error {}: {}".format(jqxhr.status, text))
-    enable_input(True)
-
-def query_succes(resp, status, jqxhr):
-    if jqxhr.status == 200:
-        document['hotspot-info'].text = ''
-        cluster_data(resp, status, jqxhr)
-    elif jqxhr.status == 204:
-        #document['hotspot-info'].text = 'No data'
-        toast('No data', icon='info')
-        enable_input(True)
-
 def query_ajax_cluster(target=None):
     """ send request to server using ajax
         Args: target (string): 
             date to query, formatted to '%Y-%m-%d'
     """
+    def query_error(jqxhr, errortype, text):
+        #document['hotspot-info'].text = "E{}: {}".format(jqxhr.status, text)
+        toast("Error {}: {}".format(jqxhr.status, text))
+        enable_input(True)
+
+    def query_succes(resp, status, jqxhr):
+        if jqxhr.status == 200:
+            document['hotspot-info'].text = ''
+            cluster_data(resp, status, jqxhr)
+        elif jqxhr.status == 204:
+            #document['hotspot-info'].text = 'No data'
+            toast('No data', icon='info')
+            enable_input(True)
+
     data = {}
     if target is not None:
         data = {"date": target}
@@ -555,13 +537,6 @@ def query_ajax_cluster(target=None):
     })
 
 # /turf test
-
-# RoI
-
-#@bind('#hotspot-roi', 'change')
-#def enable_roi(ev):
-#    global using_roi
-#    using_roi = document['hotspot-roi'].checked
 
 @bind('#hotspot-query', 'click')
 @bind('#hotspot-date', 'change')
@@ -592,7 +567,6 @@ def date_query_slider(ev):
     offset = 60 - int(offset)
     delta = datetime.timedelta(days=offset)
     target = datetime.datetime.today() - delta
-    target_str = target.strftime('%Y-%m-%d')
 
     change_or_query(target)
 
@@ -602,9 +576,6 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
         viirs_layer.clearLayers()
         modis_layer.clearLayers()
         document['hotspot-info'].text = 'Loading...'
-
-        data = resp_data
-        date_jul = resp_data['date_jul']
     else:
         #document['hotspot-info'].text = 'Error retrieving hotspots'
         toast('Error retrieving hotspots', icon='error')
@@ -613,8 +584,16 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
     global fetch_in_progress
     fetch_in_progress = False
 
-# jQuery is somehow way faster
-# get point for today
+def wtforms_csrf_inject(csrf_token):
+    def add_csrf(xhr, settings):
+        re = js.RegExp.new('^(GET|HEAD|OPTIONS|TRACE)$', 'i').compile()
+        if not (re.test(settings.type) or js.this().crossDomain):
+            xhr.setRequestHeader("X-CSRFToken", csrf_token)
+    
+    jq.ajaxSetup({
+        'beforeSend': add_csrf
+    })
+
 def page_load_init(ev):
     query_ajax_cluster()
     #value = document['history-options'].histmode.value
@@ -630,12 +609,6 @@ base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
         ' contributors'
     )
 })
-
-#jq.ajax('/regions/kuankreng.geojson', {
-#    "dataType": "json",
-#    "success": draw_roi
-#    }
-#)
 
 leaflet.control.layers(
     {
@@ -655,5 +628,3 @@ leaflet.control.scale({"imperial": False}).addTo(lmap)
 
 # for browser console debug only
 window.lmap = lmap
-window.marker_layer = marker_layer
-window.marker_dated = marker_dated

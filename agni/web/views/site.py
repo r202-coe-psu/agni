@@ -72,8 +72,8 @@ FORMS_UNITS = {
 }
 
 class YearMonthSelect(Form):
-    class Meta:
-        csrf = False
+    #class Meta:
+    #    csrf = False
 
     year = IntegerField(label='Year', default=2000)
     month = SelectField(label='Month', choices=FORMS_MONTHS, default=1)
@@ -83,8 +83,8 @@ class YearMonthSelect(Form):
             raise ValidationError('Year outside available data range.')
 
 class HistoryControlForm(FlaskForm):
-    class Meta:
-        csrf = False
+    #class Meta:
+    #    csrf = False
 
     start = FormField(
         YearMonthSelect, 
