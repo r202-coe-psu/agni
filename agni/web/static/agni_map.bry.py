@@ -194,7 +194,7 @@ def draw_roi(roi_name, clear=True):
     if clear:
         roi_layer.clearLayers()
     if roi_name != 'all':
-        jq.ajax('/regions/{}.geojson'.format(roi_name), {
+        jq.ajax('/regions/{}'.format(roi_name), {
             "dataType": "json",
             "success": draw_roi_jq
         })

@@ -5,6 +5,7 @@ class Region(me.Document):
     name = me.StringField(required=True, unique=True)
 
     geometry = me.MultiPolygonField(required=True)
+    type = me.StringField(required=True)
     properties = me.DictField()
 
     meta = {
@@ -12,5 +13,6 @@ class Region(me.Document):
     }
 
     def populate_feature(self, feature):
+        self.type = feature.type
         self.properties = feature.properties
         self.geometry = feature.geometry

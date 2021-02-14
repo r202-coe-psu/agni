@@ -28,7 +28,6 @@ class Server:
         )
         # models.init_mongoengine(
         #         settings)
-        #self.fetch_db = influxdb.init_db(settings=settings)
         self.fetcher = service.Fetcher(settings)
         self.fetch_db = self.fetcher.influxdb
     

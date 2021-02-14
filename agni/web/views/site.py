@@ -13,6 +13,7 @@ from wtforms.validators import (
 import pathlib
 import datetime
 import calendar
+import json
 
 import geojson
 import shapely
@@ -25,10 +26,12 @@ except ImportError:
     import importlib_resources as pkg_res
 
 import pandas as pd
+import mongoengine as me
 
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv, ranger, timefmt
 from agni.models import create_influxdb
+from agni.models.region import Region
 from agni.processing import firecluster, firepredictor, heatmap
 from agni.web import regions
 
@@ -142,20 +145,6 @@ def index():
         roi_list=roi_list,
         hisctrl=history_controls,
     )
-
-@module.route('/testyeet', methods=['post'])
-def index_post():
-    form = YearMonthSelect()
-    if form.validate_on_submit():
-        for k, v in form.data.items():
-            print(k, v)
-    else:
-        for k, v in form.errors.items():
-            print('ERR: {}: {}'.format(k, v))
-        print(form.errors)
-        return form.errors, 400
-
-    return dict()
 
 @module.route('/hotspots')
 def get_all_hotspots():
@@ -276,6 +265,10 @@ def get_geojson_hotspots():
 
 @module.route('/regions/<roi>')
 def serve_roi_file(roi):
+    region = Region.objects(name=roi)[0]
+    if region:
+        return jsonify(region)
+    # fallback
     return send_from_directory('regions', roi)
 
 @module.route('/clustered.geojson')
