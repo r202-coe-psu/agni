@@ -17,7 +17,7 @@ services:
         volumes:
             - /etc/localtime:/etc/localtime:ro
             - ../deployment/agni/influxdb:/var/lib/influxdb
-            - ./influxdb-agni.conf:/etc/influxdb/influxdb.conf:ro
+            #- ./influxdb-agni.conf:/etc/influxdb/influxdb.conf:ro
         # restart: always
         ports:
             - "8087:8086"

@@ -104,10 +104,9 @@ class HistoryControlForm(FlaskForm):
         default='count'
     )
 
-@module.route('/')
-def index():
-    roi_none = ['Thailand', 'all']
-    roi_list = [roi_none]
+ROI_NONE = ('Thailand', 'all')
+def roi_list_module():
+    roi_list = [ROI_NONE]
 
     region_list = [ 
         roi
@@ -122,8 +121,19 @@ def index():
         roi_label = roi_feature['properties']['name']
         # get matching filename
         roi_def = pathlib.Path(roi_file).stem
-        roi_list.append([roi_label, roi_def])
-    
+        roi_list.append((roi_label, roi_def))
+    return roi_list
+
+def roi_label_db():
+    roi_list = [ROI_NONE]
+    reglist = Region.objects.only('name', 'properties')
+    roi_list += [(c.properties['name'], c.name) for c in reglist]
+    return roi_list
+
+@module.route('/')
+def index():
+    roi_list = roi_label_db()
+
     now = datetime.datetime.now()
     history_controls = HistoryControlForm()
     # set starting value
@@ -265,7 +275,7 @@ def get_geojson_hotspots():
 
 @module.route('/regions/<roi>')
 def serve_roi_file(roi):
-    region = Region.objects(name=roi)[0]
+    region = Region.objects(name=roi).first()
     if region:
         return jsonify(region)
     # fallback
@@ -372,7 +382,7 @@ def get_region_histogram(region, data_type=None):
         date_end = timefmt.normalize(date_end)
     else:
         return "Malformed input", 400
-    
+
     #print([start, end])
     # get region bbox for faster processing, no db yet
     roi_str = pkg_res.read_text(regions, "{}.geojson".format(region))
@@ -383,14 +393,17 @@ def get_region_histogram(region, data_type=None):
     roi_bbox = roi_shape.bounds
 
     data = lookup_data(datestart=date_start, dateend=date_end, bounds=roi_bbox)
+    if len(data) == 0:
+        return 'No Data', 204
+
     if data_type == 'count':
         weight = None
         repr_mode = 'count'
-        
+
     else:
         weight = data_type
         repr_mode = 'average'
-    
+
     try:
         val_unit = FORMS_UNITS[data_type]
     except KeyError:
