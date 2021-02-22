@@ -65,10 +65,11 @@ class NRTHeatmap:
         try:
             xdata = data[xkey]
             ydata = data[ykey]
+            xdata, ydata = self.UTM_TF.transform(xdata.to_list(),
+                                                 ydata.to_list())
         except KeyError:
-            xdata = pd.Series([0])
-            ydata = pd.Series([0])
-        xdata, ydata = self.UTM_TF.transform(xdata.to_list(), ydata.to_list())
+            xdata = pd.Series([])
+            ydata = pd.Series([])
         return xdata, ydata
 
     def fit(self, data, xkey, ykey, wkey=None):
@@ -84,19 +85,22 @@ class NRTHeatmap:
         self._fit_count(xdata=xdata, ydata=ydata)
 
         if weights:
-            wdata = data_[wkey]
+            try:
+                wdata = data_[wkey]
+            except KeyError:
+                wdata = pd.Series([])
             self._fit_weight(xdata=xdata, ydata=ydata, wdata=wdata)
             self._calc_weighted_average()
         else:
             self.weights = None
-        
-    
+
+
     def _fit_count(self, xdata, ydata):
         count, xedge, yedge = np.histogram2d(
             x=xdata, y=ydata, bins=self.edges,
         )
         self.counts = (count.T).astype(int)
-    
+
     def _fit_weight(self, xdata, ydata, wdata):
         weight_grid, xedge, yedge = np.histogram2d(
             x=xdata, y=ydata, bins=self.edges,
