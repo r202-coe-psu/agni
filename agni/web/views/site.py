@@ -1,32 +1,19 @@
-from flask import Blueprint, render_template, current_app, url_for, request
-from flask import jsonify, send_from_directory
-
-from flask_wtf import FlaskForm
-from wtforms import (
-    Form, StringField, SelectField, IntegerField, FormField, RadioField,
-    ValidationError
-)
-from wtforms.validators import (
-    DataRequired
+from flask import (
+    Blueprint, render_template, current_app, url_for, request,
+    jsonify, send_from_directory
 )
 
 import pathlib
 import datetime
-import calendar
-import json
 
 import geojson
 import shapely
 import shapely.geometry
-import wtforms
 
 try:
     import importlib.resources as pkg_res
 except ImportError:
     import importlib_resources as pkg_res
-
-import pandas as pd
-import mongoengine as me
 
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv, ranger, timefmt
@@ -34,6 +21,7 @@ from agni.models import create_influxdb
 from agni.models.region import Region
 from agni.processing import firecluster, firepredictor, heatmap
 from agni.web import regions
+from agni.web.forms.mapcontrols import HistoryControlForm
 
 module = Blueprint('site', __name__)
 
@@ -52,59 +40,8 @@ fetch_hotspots = {
     'modis': get_modis_hotspots
 }
 
-FORMS_MONTHS = [
-    (m, datetime.datetime(2020, m, 1).strftime('%B')) 
-    for m in range(1, 13)
-]
-YEAR_START = 2000
-YEAR_END = datetime.datetime.now().year
 
-FORMS_NRT_VALUES = [
-    ('count', 'Count'),
-    ('frp', 'FRP'),
-    ('bright_ti4', 'Temperature I-4'),
-    ('bright_ti5', 'Temperature I-5'),
-]
-
-ZERO_K_CELSIUS = -273.15
-
-FORMS_UNITS = {
-    'frp': 'MW',
-    'bright_ti4': 'K',
-    'bright_ti5': 'K',
-}
-
-class YearMonthSelect(Form):
-    #class Meta:
-    #    csrf = False
-
-    year = IntegerField(label='Year', default=2000)
-    month = SelectField(label='Month', choices=FORMS_MONTHS, default=1)
-
-    def validate_year(form, field):
-        if not (YEAR_START <= field.data <= YEAR_END):
-            raise ValidationError('Year outside available data range.')
-
-class HistoryControlForm(FlaskForm):
-    #class Meta:
-    #    csrf = False
-
-    start = FormField(
-        YearMonthSelect, 
-        label='Time Start'
-    )
-    end = FormField(
-        YearMonthSelect,
-        label='Time End'
-    )
-    data_type = RadioField(
-        label="Data Type", 
-        choices=FORMS_NRT_VALUES,
-        validate_choice=True,
-        default='count'
-    )
-
-ROI_NONE = ('Thailand', 'all')
+ROI_NONE = ['Thailand', 'all']
 def roi_list_module():
     roi_list = [ROI_NONE]
 
@@ -121,13 +58,13 @@ def roi_list_module():
         roi_label = roi_feature['properties']['name']
         # get matching filename
         roi_def = pathlib.Path(roi_file).stem
-        roi_list.append((roi_label, roi_def))
+        roi_list.append([roi_label, roi_def])
     return roi_list
 
 def roi_label_db():
     roi_list = [ROI_NONE]
     reglist = Region.objects.only('name', 'properties')
-    roi_list += [(c.properties['name'], c.name) for c in reglist]
+    roi_list += [[c.properties['name'], c.name] for c in reglist]
     return roi_list
 
 @module.route('/')
@@ -404,8 +341,14 @@ def get_region_histogram(region, data_type=None):
         weight = data_type
         repr_mode = 'average'
 
+    NRT_DATA_UNITS = {
+        'frp': 'MW',
+        'bright_ti4': 'K',
+        'bright_ti5': 'K',
+    }
+
     try:
-        val_unit = FORMS_UNITS[data_type]
+        val_unit = NRT_DATA_UNITS[data_type]
     except KeyError:
         val_unit = ''
 

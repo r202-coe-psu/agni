@@ -336,6 +336,71 @@ def request_predict(ev):
         "error": req_error
     })
 
+def wtforms_csrf_inject(csrf_token):
+    def add_csrf(xhr, settings):
+        re = js.RegExp.new('^(GET|HEAD|OPTIONS|TRACE)$', 'i')
+        if not (re.test(settings.type) or js.this().crossDomain):
+            xhr.setRequestHeader("X-CSRFToken", csrf_token)
+
+    jq.ajaxSetup({
+        'beforeSend': add_csrf
+    })
+
+def props_format_html(props, unit=''):
+    if not isinstance(props, dict):
+        props = props.to_dict()
+
+    features_str = []
+    for k, v in props.items():
+        if unit != '' and k == 'value':
+            kv_str = "<b>{}</b>: {} {}".format(k, v, unit)
+        else:
+            kv_str = "<b>{}</b>: {}".format(k, v)
+        features_str.append(kv_str)
+    feature_html = '<br />'.join(features_str)
+    return feature_html
+
+
+# choropleth
+# low to high
+chrp = None
+CHOROPLETH_BINS = ['#ffffb2','#fecc5c','#fd8d3c','#e31a1c']
+
+def info_onadd(map_):
+    this = js.this()
+    map_.info_ctrl = this
+    this._div = leaflet.DomUtil.create('div', 'info')
+    this.update()
+    return this._div
+
+def info_onremove(map_):
+    map_.info_ctrl = None
+
+def info_update(props=None):
+    this = js.this()
+    if props is not None:
+        this._div.innerHTML = props_format_html(props)
+    else:
+        this._div.innerHTML = 'Hover over heatmap cells for info'
+
+Info_ctrl = leaflet.Control.extend({
+    'options': {
+        'position': 'bottomright'
+    },
+    'onAdd': info_onadd,
+    'onRemove': info_onremove,
+    'update': info_update
+})
+info_ctrl = Info_ctrl.new()
+info_ctrl.addTo(lmap)
+
+# /choropleth
+
+def value_map(value, in_bounds, out_bounds):
+    in_min, in_max = in_bounds
+    out_min, out_max = out_bounds
+    return (value-in_min) * (out_max-out_min) / (in_max-in_min) + out_min
+
 @bind('#do-history', 'click')
 def show_history(ev):
     if roi_name == 'all':
@@ -349,35 +414,68 @@ def show_history(ev):
     data_type = form_dict['data_type']
     csrf_token = form_dict['csrf_token']
 
-    def value_map(value, in_bounds, out_bounds):
-        in_min, in_max = in_bounds
-        out_min, out_max = out_bounds
-        return (value-in_min) * (out_max-out_min) / (in_max-in_min) + out_min
+    def generate_colors_func(colors, lower, upper):
+        color_class = len(colors)
 
-    def histogram_cell_style(feature, input_bounds, output_bounds=[0.1, 0.5]):
+        def get_color(value):
+            cindex = value_map(value, (lower, upper), (0, color_class))
+            cindex = max(0, min(color_class-1, cindex))
+            return colors[cindex]
+
+        return get_color
+
+    def highlight_feature(e):
+        layer = e.target
+
+        layer.setStyle({
+            "color": '#666',
+            "fillOpacity": 0.75,
+            "stroke": True,
+            "weight": 1
+        })
+        info_ctrl.update(layer.feature.properties.to_dict())
+
+        if not (leaflet.Browser.ie
+                or leaflet.Browser.opera
+                or leaflet.Browser.edge):
+            layer.bringToFront()
+
+    def highlight_reset(e):
+        global chrp
+        chrp.resetStyle(e.target)
+        info_ctrl.update()
+
+    def histogram_cell_style(feature, input_bounds, output_bounds):
         value = feature.properties.value
 
         base_cell = CELLSTYLE['FIRE']
 
+        colorfunc = generate_colors_func(CHOROPLETH_BINS, *input_bounds)
+        cell_color = colorfunc(value)
+
         style = dict(
             base_cell,
-            fillOpacity=value_map(value, input_bounds, output_bounds)
+            fillColor=cell_color,
+            #fillOpacity=value_map(value, input_bounds, output_bounds)
+            fillOpacity=0.5
         )
         return style
-    
+
     def histogram_cell_features(feature, layer, unit=''):
-        features_str = []
-        for k, v in feature.properties.to_dict().items():
-            if unit != '' and k == 'value':
-                kv_str = "<b>{}</b>: {} {}".format(k, v, unit)
-            else:
-                kv_str = "<b>{}</b>: {}".format(k, v)
-            features_str.append(kv_str)
-        
-        layer.bindPopup('<br />'.join(features_str))
+        props = feature.properties.to_dict()
+        info_ctrl.update(props)
+
+        props_html = props_format_html(props, unit)
+        layer.bindPopup(props_html)
+
+        layer.on({
+            "mouseover": highlight_feature,
+            "mouseout": highlight_reset
+        })
 
     def req_success(resp, status, jqxhr):
         if jqxhr.status == 200:
+            global chrp
             min_val = resp.info.min_value
             max_val = resp.info.max_value
             unit = resp.info.value_unit
@@ -385,15 +483,18 @@ def show_history(ev):
             print(bounds, max_val-min_val)
 
             history_layer.clearLayers()
-            leaflet.geoJSON(
+            chrp = leaflet.geoJSON(
                 resp, 
                 {
-                    'style': lambda s: histogram_cell_style(s, bounds),
+                    'style': lambda s: histogram_cell_style(
+                        s, bounds, [0.2, 0.4]
+                    ),
                     'onEachFeature': lambda f, l: histogram_cell_features(
                         f, l, unit
                     )
                 }
-            ).addTo(history_layer)
+            )
+            chrp.addTo(history_layer)
             history_layer.addTo(lmap)
 
     def req_error(jqxhr, jq_error, text_error):
@@ -584,22 +685,13 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
     global fetch_in_progress
     fetch_in_progress = False
 
-def wtforms_csrf_inject(csrf_token):
-    def add_csrf(xhr, settings):
-        re = js.RegExp.new('^(GET|HEAD|OPTIONS|TRACE)$', 'i').compile()
-        if not (re.test(settings.type) or js.this().crossDomain):
-            xhr.setRequestHeader("X-CSRFToken", csrf_token)
-    
-    jq.ajaxSetup({
-        'beforeSend': add_csrf
-    })
 
-def page_load_init(ev):
+def map_load_init(ev):
     query_ajax_cluster()
     #value = document['history-options'].histmode.value
     #switch_subopts(mode=value)
 
-lmap.on('load', page_load_init)
+lmap.on('load', map_load_init)
 
 base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
