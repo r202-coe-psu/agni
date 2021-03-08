@@ -36,7 +36,7 @@ class HotspotDatabase:
         return self
     
     def write(
-            self, data, measure, database=None,
+            self, data, measure,
             precision=None, batch_size=5000
     ):
         pending = (
@@ -50,7 +50,6 @@ class HotspotDatabase:
         self.influxdb.write_points(
             pending,
             time_precision=precision,
-            #database=database,
             batch_size=batch_size,
             protocol='json'
         )
@@ -64,7 +63,7 @@ class HotspotDatabase:
         return result_list
     
     def wait_server(self, delay=10):
-        while True:
+        while self.version is not None:
             try:
                 self.version = self.influxdb.ping()
                 logger.debug("Server Version {}".format(self.version))

@@ -2,13 +2,9 @@ import time
 import queue
 import datetime
 
-from influxdb import InfluxDBClient
-
 from . import service
+from ..models import HotspotDatabase
 from ..util import timefmt
-
-#from .. import models
-#from ..models import influxdb
 
 import logging
 logger = logging.getLogger(__name__)
@@ -28,9 +24,8 @@ class Server:
         )
         # models.init_mongoengine(
         #         settings)
-        self.fetcher = service.Fetcher(settings)
-        self.fetch_db = self.fetcher.influxdb
-    
+        self.fetch_db = HotspotDatabase(settings)
+        self.fetcher = service.Fetcher(self.fetch_db)
 
     def sleep(self, duration: datetime.timedelta):
         next_wake = (datetime.datetime.now() + duration).isoformat()
@@ -54,8 +49,7 @@ class Server:
                 logger.exception(e)
                 logger.info('Fetch encounter an error, retrying ...')
                 self.sleep(self.SLEEP_SHORT)
-                
-            
+
 
 def create_server(settings):
     return Server(settings)

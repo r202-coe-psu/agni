@@ -16,3 +16,15 @@ class Region(me.Document):
         self.type = feature.type
         self.properties = feature.properties
         self.geometry = feature.geometry
+
+class UserNotification(me.Document):
+    user_id = me.StringField(required=True, unique=True)
+    notification = me.BooleanField(default=True)
+    regions = me.ListField(me.ReferenceField(Region))
+
+    def to_json(self):
+        return {
+            "user_id": self.user_id,
+            "notification": self.notification,
+            "regions": self.regions
+        }

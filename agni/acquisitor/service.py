@@ -1,5 +1,7 @@
 import time
 import datetime
+import threading
+import queue
 
 import pytz
 import ciso8601
@@ -7,9 +9,9 @@ import ciso8601
 import pandas as pd
 import requests
 
+from ..models import HotspotDatabase
 from ..acquisitor import fetch_nrt, filtering
 from ..util import timefmt, ranger
-from ..database import HotspotDatabase
 
 import logging
 logger = logging.getLogger(__name__)
@@ -18,8 +20,8 @@ class Fetcher:
     LOCAL_TZ = pytz.timezone('Asia/Bangkok')
     MAX_DELTA = datetime.timedelta(days=60)
 
-    def __init__(self, settings):
-        self.influxdb = HotspotDatabase(settings)
+    def __init__(self, database: HotspotDatabase):
+        self.database = database
     
     def oldest_data_date(self):
         oldest = self.current_time(utc=True) - self.MAX_DELTA
@@ -54,11 +56,11 @@ class Fetcher:
             order by time desc
             limit 1 ;
         """.format(measurement="hotspots")
-        data = self.influxdb.read(ql_str, return_df=False)
+        data = self.database.read(ql_str, return_df=False)
         latest_time = ciso8601.parse_datetime_as_naive(data[0]['time'])
         return latest_time
 
-    def update_data(self):
+    def update_data(self, write=True):
         try:
             latest = self.influx_latest_time()
             logger.debug('Latest time: {}'.format(latest.isoformat()))
@@ -102,4 +104,71 @@ class Fetcher:
             new_data = self.filter_newer_data(all_data_df, min_time=fetch_start)
             logger.debug('All data length: {}'.format(len(all_data)))
             logger.debug('New data length: {}'.format(len(new_data)))
-            self.influxdb.write(new_data, measure='hotspots', database='hotspots')
+            if write:
+                self.database.write(
+                    new_data, 
+                    measure='hotspots', 
+                )
+            return new_data
+        return None
+
+class FetcherDaemon(threading.Thread):
+    SLEEP_SHORT = datetime.timedelta(seconds=10)
+    SLEEP_LONG = datetime.timedelta(minutes=20)
+
+    def __init__(self, database: HotspotDatabase, out_queue: queue.Queue):
+        super().__init__()
+
+        self.running = False
+        self.out_queue = out_queue
+
+        self.database = database
+        self.fetcher = Fetcher(self.database)
+    
+    def sleep(self, duration: datetime.timedelta):
+        next_wake = (datetime.datetime.now() + duration).isoformat()
+        logger.debug(
+            'Sleeping, next wake in {dur} (at {at})'.format(
+                dur=timefmt.format_delta(duration),
+                at=next_wake
+            ), 
+        )
+        time.sleep(duration.total_seconds())
+
+    def run(self):
+        self.running = True
+        while(self.running):
+            try:
+                new_data = self.fetcher.update_data(write=False)
+                self.out_queue.put(new_data)
+                self.sleep(self.SLEEP_LONG)
+            except Exception as e:
+                logger.exception(e)
+                logger.error('Fetch encounter an error, retrying ...')
+                self.sleep(self.SLEEP_SHORT)
+
+    def stop(self):
+        self.running = False
+
+class DatabaseDaemon(threading.Thread):
+    def __init__(
+        self, 
+        database: HotspotDatabase, measure,
+        in_queue: queue.Queue
+    ):
+        super().__init__()
+
+        self.database = database
+        self.measure = measure
+        self.in_queue = in_queue
+        self.running = False
+
+    def run(self):
+        self.running = True
+        while self.running:
+            data = self.in_queue.get()
+            self.database.write(data, measure=self.measure)
+            logger.info("Written data of length {}".format(len(data)))
+
+    def stop(self):
+        self.running = False
