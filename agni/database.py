@@ -67,7 +67,7 @@ class HotspotDatabase:
             try:
                 self.version = self.influxdb.ping()
                 logger.debug("Server Version {}".format(self.version))
-                return
+                return self.version
             except Exception:
                 time.sleep(delay)
     

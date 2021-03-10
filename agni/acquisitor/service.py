@@ -5,9 +5,10 @@ import queue
 
 import pytz
 import ciso8601
+import requests
 
 import pandas as pd
-import requests
+import mongoengine as me
 
 from ..models import HotspotDatabase
 from ..acquisitor import fetch_nrt, filtering
@@ -15,6 +16,16 @@ from ..util import timefmt, ranger
 
 import logging
 logger = logging.getLogger(__name__)
+
+def sleep_log(duration: datetime.timedelta):
+    next_wake = (datetime.datetime.now() + duration).isoformat()
+    logger.debug(
+        'Sleeping, next wake in {dur} (at {at})'.format(
+            dur=timefmt.format_delta(duration),
+            at=next_wake
+        ), 
+    )
+    time.sleep(duration.total_seconds())
 
 class Fetcher:
     LOCAL_TZ = pytz.timezone('Asia/Bangkok')
@@ -112,54 +123,12 @@ class Fetcher:
             return new_data
         return None
 
-class FetcherDaemon(threading.Thread):
-    SLEEP_SHORT = datetime.timedelta(seconds=10)
-    SLEEP_LONG = datetime.timedelta(minutes=20)
-
-    def __init__(self, database: HotspotDatabase, out_queue: queue.Queue):
-        super().__init__()
-
-        self.running = False
-        self.out_queue = out_queue
-
-        self.database = database
-        self.fetcher = Fetcher(self.database)
-    
-    def sleep(self, duration: datetime.timedelta):
-        next_wake = (datetime.datetime.now() + duration).isoformat()
-        logger.debug(
-            'Sleeping, next wake in {dur} (at {at})'.format(
-                dur=timefmt.format_delta(duration),
-                at=next_wake
-            ), 
-        )
-        time.sleep(duration.total_seconds())
-
-    def run(self):
-        self.running = True
-        while(self.running):
-            try:
-                new_data = self.fetcher.update_data(write=False)
-                self.out_queue.put(new_data)
-                self.sleep(self.SLEEP_LONG)
-            except Exception as e:
-                logger.exception(e)
-                logger.error('Fetch encounter an error, retrying ...')
-                self.sleep(self.SLEEP_SHORT)
-
-    def stop(self):
-        self.running = False
-
 class DatabaseDaemon(threading.Thread):
-    def __init__(
-        self, 
-        database: HotspotDatabase, measure,
-        in_queue: queue.Queue
-    ):
+    def __init__(self, settings, in_queue: queue.Queue):
         super().__init__()
 
-        self.database = database
-        self.measure = measure
+        self.database = HotspotDatabase(settings)
+        self.measure = 'hotspots'
         self.in_queue = in_queue
         self.running = False
 
@@ -169,6 +138,22 @@ class DatabaseDaemon(threading.Thread):
             data = self.in_queue.get()
             self.database.write(data, measure=self.measure)
             logger.info("Written data of length {}".format(len(data)))
+
+    def stop(self):
+        self.running = False
+
+class NotifierDaemon(threading.Thread):
+    def __init__(self, settings, in_queue):
+        super().__init__()
+
+        self.running = False
+        self.in_queue = in_queue
+
+    def run(self):
+        self.running = True
+        while self.running:
+            data = self.in_queue.get()
+            logger.debug('Got new data of length {}.'.format(len(data)))
 
     def stop(self):
         self.running = False

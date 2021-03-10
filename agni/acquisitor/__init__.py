@@ -2,8 +2,8 @@ import time
 import queue
 import datetime
 
-from . import service
-from ..models import HotspotDatabase
+from .service import NotifierDaemon, DatabaseDaemon, sleep_log, Fetcher
+from .. import models
 from ..util import timefmt
 
 import logging
@@ -22,33 +22,38 @@ class Server:
             format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
             datefmt='%m-%d %H:%M'
         )
-        # models.init_mongoengine(
-        #         settings)
-        self.fetch_db = HotspotDatabase(settings)
-        self.fetcher = service.Fetcher(self.fetch_db)
 
-    def sleep(self, duration: datetime.timedelta):
-        next_wake = (datetime.datetime.now() + duration).isoformat()
-        logger.debug(
-            'Sleeping, next wake in {dur} (at {at})'.format(
-                dur=timefmt.format_delta(duration),
-                at=next_wake
-            ), 
-        )
-        time.sleep(duration.total_seconds())
+        self.database = models.HotspotDatabase(settings)
+        models.init_mongoengine(settings)
+
+        self.fetcher = Fetcher(self.database)
+
+        self.notify_queue = queue.Queue()
+        self.write_queue = queue.Queue()
+        self.out_queues = [self.notify_queue, self.write_queue]
+
+        self.notifyd = NotifierDaemon(settings, in_queue=self.notify_queue)
+        self.notifyd.start()
+
+        self.databased = DatabaseDaemon(settings, in_queue=self.write_queue)
+        self.databased.start()
 
     def run(self):
-        self.fetch_db.wait_server()
+        self.database.wait_server()
         self.running = True
-        while(self.running):
+        while self.running:
             try:
-                self.fetcher.update_data()
-                logger.info('Fetch finished.')
-                self.sleep(self.SLEEP_LONG)
+                new_data = self.fetcher.update_data(write=False)
+                for q in self.out_queues:
+                    q.put(new_data)
+                sleep_log(self.SLEEP_LONG)
             except Exception as e:
                 logger.exception(e)
-                logger.info('Fetch encounter an error, retrying ...')
-                self.sleep(self.SLEEP_SHORT)
+                logger.error('Fetch encounter an error, retrying ...')
+                sleep_log(self.SLEEP_SHORT)
+
+    def stop(self):
+        self.running = False
 
 
 def create_server(settings):
