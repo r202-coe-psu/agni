@@ -1,7 +1,8 @@
 import time
 import datetime
 import threading
-import queue
+
+from queue import Queue
 
 import pytz
 import ciso8601
@@ -124,7 +125,7 @@ class Fetcher:
         return None
 
 class DatabaseDaemon(threading.Thread):
-    def __init__(self, settings, in_queue: queue.Queue):
+    def __init__(self, settings, in_queue: Queue):
         super().__init__()
 
         self.database = HotspotDatabase(settings)
@@ -143,10 +144,11 @@ class DatabaseDaemon(threading.Thread):
         self.running = False
 
 class NotifierDaemon(threading.Thread):
-    def __init__(self, settings, in_queue):
+    def __init__(self, settings, in_queue: Queue):
         super().__init__()
 
         self.running = False
+        self.daemon = True
         self.in_queue = in_queue
 
     def run(self):
