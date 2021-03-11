@@ -7,12 +7,13 @@ from queue import Queue
 import pytz
 import ciso8601
 import requests
+import geojson
 
 import pandas as pd
 import mongoengine as me
 
-from ..models import HotspotDatabase
-from ..acquisitor import fetch_nrt, filtering , line
+from ..models import HotspotDatabase, region
+from ..acquisitor import fetch_nrt, filtering, line
 from ..util import timefmt, ranger
 
 import logging
@@ -138,6 +139,26 @@ class NotifierDaemon(threading.Thread):
             data = self.in_queue.get()
             line.send("พบเจอจุดความร้อนใหม่ในไทย {} จุด".format(len(data)))
             logger.debug('Got new data of length {}.'.format(len(data)))
+            self.process_new_data(data)
+
+    def process_new_data(self, data_df):
+        data = data_df.to_dict('records')
+        subscriptions = region.UserRegionNotify.objects
+        for sub_user in subscriptions:
+            subregs = sub_user.regions
+            for subreg in subregs:
+                r = subreg.to_geojson()
+                point_within = filtering.filter_shape(data, r)
+                if len(point_within) > 0:
+                    self.send_notification(sub_user, data, subreg)
+
+    def send_notification(self, user, data, region_):
+        logger.debug(
+            "Found new {} points in area '{}'".format(
+                len(data),
+                region_.human_name
+            ))
+        pass
 
     def stop(self):
         self.running = False
