@@ -1,9 +1,12 @@
 import geojson
+import geojson.utils
 import utm
 
 import shapely
 import shapely.geometry
 import shapely.ops
+
+from ..util import geojsontools as gjtool
 
 # Bounding box taken from https://gist.github.com/graydon/11198540
 # format: (lon_lo, lat_lo, lon_hi, lat_hi)
@@ -43,46 +46,27 @@ def filter_bbox(nrt_points, bbox):
     return nrt_filtered
 
 def filter_shape(nrt_points, shape, buffer=None):
-    # shape as geojson FeatureCollection
-    buffered = buffer is not None
-
-    if buffered:
-        buffer_radius = float(buffer)
-
-    def latlon2utm(c):
-        east, north, zone_n, zone_l = utm.from_latlon(c[1], c[0])
-        return (east, north)
-
-    def shapely_utm2latlon(x, y, z=None):
-        lat, lon = utm.to_latlon(x, y, 47, northern=True, strict=False)
-        return (lon, lat)
-
-    def shapely_lonlat2utm(x, y, z=None):
-        a = latlon2utm((x, y))
-        return a
+    # shape is geojson feature
+    buffer_radius = float(buffer) if buffer is not None else 0
 
     # convert to UTM (zone 47N) for processing
-    geojson.utils.map_tuples(latlon2utm, shape)
+    shape_utm = gjtool.reproject(shape, gjtool.UTM_TF)
+    #shape_utm = shape
 
     # make RoI shapes
-    shp_features = shape['features']
-    shp_shapely = [
-        shapely.geometry.shape(feature["geometry"]).buffer(0) 
-        for feature in shp_features
-    ]
-    roi_shape = shapely.geometry.GeometryCollection(shp_shapely)
+    shp_geom = shape_utm.get('geometry')
+    print(shape_utm.keys())
+    roi_shape = shapely.geometry.shape(shp_geom).buffer(0)
 
-    if buffered:
-        roi_shape = roi_shape.buffer(BUFFER_DISTANCE_M)
+    roi_shape = roi_shape.buffer(buffer_radius)
 
     # filter
     retlist = []
-    for point in nrt_points:
-        p = shapely.geometry.Point(point['longitude'], point['latitude'])
-        # project to UTM
-        p = shapely.ops.transform(shapely_lonlat2utm, p)
-        if roi_shape.contains(p):
-            retlist.append(point)
+    for n in nrt_points:
+        point = shapely.geometry.Point(n['longitude'], n['latitude'])
+        point = shapely.ops.transform(gjtool.UTM_TF.transform, point)
+        if roi_shape.intersects(point):
+            retlist.append(n)
 
     return retlist
 
