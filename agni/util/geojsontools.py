@@ -1,4 +1,17 @@
 import geojson
+import geojson.utils
+
+import pyproj
+
+PROJ_LONLAT = pyproj.Proj('epsg:4326') # lat, lon
+PROJ_UTM47N = pyproj.Proj('epsg:32647') # UTM 47N, as appeared in shapefiles
+# coordinate transformers
+UTM_TF = pyproj.Transformer.from_proj(
+    PROJ_LONLAT, PROJ_UTM47N, always_xy=True
+)
+GPS_TF = pyproj.Transformer.from_proj(
+    PROJ_UTM47N, PROJ_LONLAT, always_xy=True
+)
 
 def reproject(geojson_, transformer):
     reproj_geojson = geojson.utils.map_tuples(

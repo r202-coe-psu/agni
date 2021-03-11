@@ -1,4 +1,3 @@
-import pyproj
 import geojson
 
 import numpy as np
@@ -7,19 +6,9 @@ import pandas as pd
 from ..util import ranger
 from ..util import geojsontools as gjtool
 
-_PROJ_LONLAT = pyproj.Proj('epsg:4326') # lat, lon
-_PROJ_UTM47N = pyproj.Proj('epsg:32647') # UTM 47N, as appeared in shapefiles
-# coordinate transformers
-_UTM_TF = pyproj.Transformer.from_proj(
-    _PROJ_LONLAT, _PROJ_UTM47N, always_xy=True
-)
-_GPS_TF = pyproj.Transformer.from_proj(
-    _PROJ_UTM47N, _PROJ_LONLAT, always_xy=True
-)
-
 class NRTHeatmap:
-    UTM_TF = _UTM_TF
-    GPS_TF = _GPS_TF
+    UTM_TF = gjtool.UTM_TF
+    GPS_TF = gjtool.GPS_TF
     def __init__(self, step=None, bounds=None):
         self.__weighted_avg = None
         self.weights = None
