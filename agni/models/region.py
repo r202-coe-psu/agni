@@ -15,13 +15,33 @@ class Region(me.Document):
 
     def populate_feature(self, feature):
         self.type = feature.type
-        self.properties = feature.properties
         self.geometry = feature.geometry
+        self.properties = {
+            k: v
+            for k, v in feature.properties.items()
+        }
+        self.name = self.properties.get('name', self.name)
+        self.human_name = self.properties.get('human_name', self.human_name)
 
-class UserRegionNotifications(me.Document):
-    user_id = me.StringField(required=True, unique=True)
+    def to_dict(self):
+        props = {k: v for k, v in self.properties.items()}
+        props = dict(props, name=self.name, human_name=self.human_name)
+        return {
+            'type': self.type,
+            'geometry': self.geometry,
+            'properties': props
+        }
+
+
+class UserRegionNotify(me.Document):
+    user_id = me.StringField(required=True)
     notification = me.BooleanField(default=True)
+    line_token = me.StringField()
     regions = me.ListField(me.ReferenceField(Region))
+
+    meta = {
+        'collection': 'user_region_notify'
+    }
 
     def to_json(self):
         return {

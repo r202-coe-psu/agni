@@ -18,11 +18,12 @@ with open(GJFILE, 'r') as f:
     gj = geojson.load(f)
     gjf = gj.features[0]
     gjr = region.Region(name=bname)
+    gjr.human_name = gjf.properties['name']
     gjr.populate_feature(gjf)
 
     rlist = region.Region.objects(name=bname)
     if len(rlist) > 0:
-        r = rlist[0]
-        r.delete()
+        for r in rlist:
+            r.delete()
 
     gjr.save()
