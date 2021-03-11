@@ -63,8 +63,8 @@ def roi_list_module():
 
 def roi_label_db():
     roi_list = [ROI_NONE]
-    reglist = Region.objects.only('name', 'properties')
-    roi_list += [[c.properties['name'], c.name] for c in reglist]
+    reglist = Region.objects
+    roi_list += [[c.human_name, c.name] for c in reglist]
     return roi_list
 
 @module.route('/')

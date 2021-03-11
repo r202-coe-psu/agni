@@ -27,10 +27,14 @@ class Region(me.Document):
         props = {k: v for k, v in self.properties.items()}
         props = dict(props, name=self.name, human_name=self.human_name)
         return {
+            'id': str(self.id),
             'type': self.type,
             'geometry': self.geometry,
             'properties': props
         }
+
+    def to_geojson(self):
+        return geojson.Feature(**self.to_dict())
 
 
 class UserRegionNotify(me.Document):
