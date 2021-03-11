@@ -349,6 +349,7 @@ def wtforms_csrf_inject(csrf_token):
 def props_format_html(props, unit=''):
     if not isinstance(props, dict):
         props = props.to_dict()
+
     features_str = []
     for k, v in props.items():
         if unit != '' and k == 'value':
@@ -356,9 +357,9 @@ def props_format_html(props, unit=''):
         else:
             kv_str = "<b>{}</b>: {}".format(k, v)
         features_str.append(kv_str)
+
     feature_html = '<br />'.join(features_str)
     return feature_html
-
 
 # choropleth
 # low to high
@@ -405,7 +406,7 @@ def show_history(ev):
     if roi_name == 'all':
         toast(text="Must pick a region", icon="error")
         return
-    
+
     form_serialize = jq('#history-options').serialize()
     form_data = window.FormData.new(document['history-options'])
     form_dict = dict(x for x in form_data.entries())
@@ -503,7 +504,8 @@ def show_history(ev):
     wtforms_csrf_inject(csrf_token)
     jq.ajax(
         "/history/{region}/{data_type}".format(
-            region=roi_name, data_type=data_type),
+            region=roi_name, data_type=data_type
+        ),
         {
             'type': 'POST',
             'dataType': 'json',
@@ -570,12 +572,17 @@ def cluster_data(resp, status, jqxhr):
         # format time for display
         utc_time = js.Date.new(features_dict['time'])
         features_dict['time'] = utc_time.toLocaleString()
-        # format infos
         features_str = [
             "<b>{}</b>: {}".format(k, v)
             for k, v in features_dict.items()
         ]
-        
+
+        coords = layer.getLatLng() # leaflet's LatLon object
+        google_links = 'https://www.google.com/maps/search/?api=1&query={lat},{lon}'
+        google_links = google_links.format(lat=coords.lat, lon=coords.lng)
+        google_html = '<a href={link}>google maps</a>'.format(link=google_links)
+        features_str.append(google_html)
+
         layer.bindPopup('<br />'.join(features_str))
 
     def turf_filter(feature):
