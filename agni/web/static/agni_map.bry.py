@@ -13,11 +13,11 @@ BASE_MARKER_OPTS = {
     "stroke": False,
     "radius": 5,
     "color": 'orange',
-    "fillOpacity": 0.2
+    "fillOpacity": 0.5
 }
 
 DBSCAN_MARKER_OPTS = {
-    "core": dict(BASE_MARKER_OPTS, color="red", fillOpacity=0.5),
+    "core": dict(BASE_MARKER_OPTS, color="red", fillOpacity=0.75),
     "edge": dict(BASE_MARKER_OPTS, color="red"),
     "noise": dict(BASE_MARKER_OPTS, color="orange"),
 }
@@ -69,6 +69,8 @@ DP_OPTS = {
     "maxDate": _jsdate_today,
     "format": "yyyy-mm-dd"
 }
+
+GOOGLE_MAPS_API_URL = 'https://www.google.com/maps/search/?api=1'
 
 # materialize css init
 dp_elems = document.querySelectorAll('.datepicker')
@@ -455,9 +457,9 @@ def show_history(ev):
 
         style = dict(
             base_cell,
-            fillColor=cell_color,
-            #fillOpacity=value_map(value, input_bounds, output_bounds)
-            fillOpacity=0.5
+            #fillColor=cell_color,
+            fillOpacity=value_map(value, input_bounds, output_bounds)
+            #fillOpacity=0.5
         )
         return style
 
@@ -487,7 +489,7 @@ def show_history(ev):
                 resp, 
                 {
                     'style': lambda s: histogram_cell_style(
-                        s, bounds, [0.2, 0.4]
+                        s, bounds, [0.2, 0.5]
                     ),
                     'onEachFeature': lambda f, l: histogram_cell_features(
                         f, l, unit
@@ -578,10 +580,14 @@ def cluster_data(resp, status, jqxhr):
         ]
 
         coords = layer.getLatLng() # leaflet's LatLon object
-        google_links = 'https://www.google.com/maps/search/?api=1&query={lat},{lon}'
-        google_links = google_links.format(lat=coords.lat, lon=coords.lng)
-        google_html = '<a href={link}>google maps</a>'.format(link=google_links)
-        features_str.append(google_html)
+        coords_link = '&'.join([
+            GOOGLE_MAPS_API_URL,
+            'query={lat},{lon}'
+        ]).format(lat=coords.lat, lon=coords.lng)
+        coords_html = (
+            '<a href="{link}" target="_blank">Open in Google maps</a>'
+        ).format(link=coords_link)
+        features_str.append(coords_html)
 
         layer.bindPopup('<br />'.join(features_str))
 
