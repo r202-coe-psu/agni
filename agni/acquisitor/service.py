@@ -124,25 +124,6 @@ class Fetcher:
             return new_data
         return None
 
-class DatabaseDaemon(threading.Thread):
-    def __init__(self, settings, in_queue: Queue):
-        super().__init__()
-
-        self.database = HotspotDatabase(settings)
-        self.measure = 'hotspots'
-        self.in_queue = in_queue
-        self.running = False
-
-    def run(self):
-        self.running = True
-        while self.running:
-            data = self.in_queue.get()
-            self.database.write(data, measure=self.measure)
-            logger.info("Written data of length {}".format(len(data)))
-
-    def stop(self):
-        self.running = False
-
 class NotifierDaemon(threading.Thread):
     def __init__(self, settings, in_queue: Queue):
         super().__init__()

@@ -2,7 +2,7 @@ import time
 import queue
 import datetime
 
-from .service import NotifierDaemon, DatabaseDaemon, sleep_log, Fetcher
+from .service import Fetcher, NotifierDaemon, sleep_log
 from .. import models
 from ..util import timefmt
 
@@ -29,21 +29,17 @@ class Server:
         self.fetcher = Fetcher(self.database)
 
         self.notify_queue = queue.Queue()
-        self.write_queue = queue.Queue()
-        self.out_queues = [self.notify_queue, self.write_queue]
+        self.out_queues = [self.notify_queue]
 
         self.notifyd = NotifierDaemon(settings, in_queue=self.notify_queue)
         self.notifyd.start()
-
-        self.databased = DatabaseDaemon(settings, in_queue=self.write_queue)
-        self.databased.start()
 
     def run(self):
         self.database.wait_server()
         self.running = True
         while self.running:
             try:
-                new_data = self.fetcher.update_data(write=False)
+                new_data = self.fetcher.update_data(write=True)
                 for q in self.out_queues:
                     q.put(new_data)
                 sleep_log(self.SLEEP_LONG)

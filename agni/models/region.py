@@ -3,6 +3,7 @@ import geojson
 
 class Region(me.Document):
     name = me.StringField(required=True, unique=True)
+    human_name = me.StringField(required=True)
 
     geometry = me.MultiPolygonField(required=True)
     type = me.StringField(required=True)
@@ -17,7 +18,7 @@ class Region(me.Document):
         self.properties = feature.properties
         self.geometry = feature.geometry
 
-class UserNotification(me.Document):
+class UserRegionNotifications(me.Document):
     user_id = me.StringField(required=True, unique=True)
     notification = me.BooleanField(default=True)
     regions = me.ListField(me.ReferenceField(Region))
@@ -26,5 +27,7 @@ class UserNotification(me.Document):
         return {
             "user_id": self.user_id,
             "notification": self.notification,
-            "regions": self.regions
+            "regions": [
+                r.human_name for r in self.regions
+            ]
         }
