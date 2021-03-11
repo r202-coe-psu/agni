@@ -12,7 +12,7 @@ import pandas as pd
 import mongoengine as me
 
 from ..models import HotspotDatabase
-from ..acquisitor import fetch_nrt, filtering
+from ..acquisitor import fetch_nrt, filtering , line
 from ..util import timefmt, ranger
 
 import logging
@@ -136,6 +136,7 @@ class NotifierDaemon(threading.Thread):
         self.running = True
         while self.running:
             data = self.in_queue.get()
+            line.send("พบเจอจุดความร้อนใหม่ในไทย {} จุด".format(len(data)))
             logger.debug('Got new data of length {}.'.format(len(data)))
 
     def stop(self):

@@ -349,7 +349,6 @@ def wtforms_csrf_inject(csrf_token):
 def props_format_html(props, unit=''):
     if not isinstance(props, dict):
         props = props.to_dict()
-
     features_str = []
     for k, v in props.items():
         if unit != '' and k == 'value':
