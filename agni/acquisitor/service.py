@@ -157,14 +157,15 @@ class NotifierDaemon(threading.Thread):
                 ).exclude('regions')
                 for user in subbed_users:
                     if user.notification:
-                        self.send_notification(user, point_within, region)
+                        self.send_notification(user, region, point_within)
 
-    def send_notification(self, user, data, region_):
+    def send_notification(self, user, region, data):
         user_token = user.line_token
         logger.debug(
-            "Found new {} points in area '{}'".format(
+            "Found new {} points in area '{}', notifying {}...".format(
                 len(data),
-                region_.human_name
+                region.human_name,
+                user.user_alias
             ))
         pass
 
