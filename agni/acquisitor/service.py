@@ -12,7 +12,8 @@ import geojson
 import pandas as pd
 import mongoengine as me
 
-from ..models import HotspotDatabase, region
+from ..models import HotspotDatabase
+from ..models.region import UserRegionNotify, Region
 from ..acquisitor import fetch_nrt, filtering, line
 from ..util import timefmt, ranger
 
@@ -146,18 +147,17 @@ class NotifierDaemon(threading.Thread):
 
     def process_new_data(self, data_df):
         data = data_df.to_dict('records')
-        sub_users = region.UserRegionNotify.objects
-        for user in sub_users:
-            # user has disabled notifications
-            if not user.notification:
-                continue
-
-            sub_regions = user.regions
-            for reg in sub_regions:
-                r = reg.to_geojson()
-                point_within = filtering.filter_shape(data, r)
-                if len(point_within) > 0:
-                    self.send_notification(user, point_within, reg)
+        regions = Region.objects
+        for region in regions:
+            r = region.to_geojson()
+            point_within = filtering.filter_shape(data, r)
+            if len(point_within) > 0:
+                subbed_users = UserRegionNotify.objects(
+                    regions__name=region.name
+                ).exclude('regions')
+                for user in subbed_users:
+                    if user.notification:
+                        self.send_notification(user, point_within, region)
 
     def send_notification(self, user, data, region_):
         user_token = user.line_token
