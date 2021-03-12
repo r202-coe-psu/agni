@@ -1,3 +1,4 @@
+from agni.models import region
 import datetime
 import csv
 import io
@@ -9,7 +10,19 @@ import pandas as pd
 from ..util import timefmt
 
 API_URL = 'https://nrt4.modaps.eosdis.nasa.gov/api/v2/content/archives/FIRMS/'
-TOKEN = 'DB8ECCD2-41E6-11EA-8E17-6EBC4405026C'
+__TOKEN = None
+
+class SatSrc:
+    name = None
+    url = None
+    filename = None
+    zone = None
+
+    def __init__(self, name=None, url=None, filename=None, zone=None):
+        self.name = name
+        self.url = url
+        self.zone = zone
+        self.filename = filename
 
 SRC_VIIRS = {
     'name': 'viirs',
@@ -40,11 +53,33 @@ MAKE_FLOATS = [
 ]
 SKIP = ['acq_date', 'acq_time']
 
-def make_url(src, date):
-    filedate = date.strftime('%Y%j')
-    filename = "{}.txt".format(filedate)
+class NoTokenError(Exception):
+    pass
 
-    return ''.join([API_URL, src['url'], src['filename'], filename])
+def set_token(token):
+    global __TOKEN
+    __TOKEN = token
+
+def check_token(token=None):
+    if token is not None:
+        return token
+    elif __TOKEN is not None:
+        return __TOKEN
+    else:
+        raise NoTokenError("FIRMS API Token key required.")
+
+def make_url(src, date):
+    if isinstance(src, SatSrc):
+        url = src.url
+        filename = src.filename
+    else:
+        url = src['url']
+        filename = src['filename']
+    
+    filedate = timefmt.format_julian(date)
+    filename_dated = "{}{}.txt".format(filename, filedate)
+
+    return ''.join([API_URL, url, filename_dated])
 
 def process_csv(raw_csv):
     """preprocess NRT raw CSV to python dict
@@ -121,7 +156,7 @@ def process_csv_pandas(raw_csv, as_dict=False):
 
     return hotspots
 
-def request_nrt(date=None, src=SRC_VIIRS, token=TOKEN):
+def request_nrt(date=None, src=SRC_VIIRS, token=None):
     """Fetch NRT Data from NASA (SEA Region) by date
 
     Args:
@@ -133,6 +168,8 @@ def request_nrt(date=None, src=SRC_VIIRS, token=TOKEN):
             target satellite for request
             defaults to VIIRS (optional)
     """
+    token = check_token(token)
+
     if date is None:
         date = datetime.datetime.today()
 
@@ -145,11 +182,12 @@ def request_nrt(date=None, src=SRC_VIIRS, token=TOKEN):
     )
     return r
 
-def get_nrt_data(date=None, src=None, silent_404=True):
+def get_nrt_data(date=None, src=None, silent_404=True, token=None):
     src = src or SRC_VIIRS
+    token = check_token(token)
 
     hotspots = []
-    req = request_nrt(date, src)
+    req = request_nrt(date, src, token)
     if req.ok:
         hotspots = process_csv_pandas(req.text, as_dict=True)
     elif req.status_code == 404 and silent_404:

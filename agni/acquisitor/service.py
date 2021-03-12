@@ -33,8 +33,11 @@ class Fetcher:
     LOCAL_TZ = pytz.timezone('Asia/Bangkok')
     MAX_DELTA = datetime.timedelta(days=60)
 
-    def __init__(self, database: HotspotDatabase):
+    def __init__(self, settings, database: HotspotDatabase):
+        self.firms_token = settings.get('FIRMS_API_TOKEN')
         self.database = database
+
+        fetch_nrt.set_token(self.firms_token)
     
     def oldest_data_date(self):
         oldest = self.current_time(utc=True) - self.MAX_DELTA
@@ -143,16 +146,21 @@ class NotifierDaemon(threading.Thread):
 
     def process_new_data(self, data_df):
         data = data_df.to_dict('records')
-        subscriptions = region.UserRegionNotify.objects
-        for sub_user in subscriptions:
-            subregs = sub_user.regions
-            for subreg in subregs:
-                r = subreg.to_geojson()
+        sub_users = region.UserRegionNotify.objects
+        for user in sub_users:
+            # user has disabled notifications
+            if not user.notification:
+                continue
+
+            sub_regions = user.regions
+            for reg in sub_regions:
+                r = reg.to_geojson()
                 point_within = filtering.filter_shape(data, r)
                 if len(point_within) > 0:
-                    self.send_notification(sub_user, data, subreg)
+                    self.send_notification(user, point_within, reg)
 
     def send_notification(self, user, data, region_):
+        user_token = user.line_token
         logger.debug(
             "Found new {} points in area '{}'".format(
                 len(data),

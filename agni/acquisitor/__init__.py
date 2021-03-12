@@ -26,7 +26,7 @@ class Server:
         self.database = models.HotspotDatabase(settings)
         models.init_mongoengine(settings)
 
-        self.fetcher = Fetcher(self.database)
+        self.fetcher = Fetcher(settings, self.database)
 
         self.notify_queue = queue.Queue()
         self.out_queues = [self.notify_queue]

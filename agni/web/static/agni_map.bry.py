@@ -7,7 +7,7 @@ turf = window.turf
 jq = window.jQuery
 mcss = window.M
 
-_jsdate_today = js.Date.new()
+_js_now = js.Date.new
 
 BASE_MARKER_OPTS = {
     "stroke": False,
@@ -65,8 +65,8 @@ ZONE_SELECT_STYLE = {
 # set up materialize css stuff
 DP_OPTS = {
     "setDefaultDate": True,
-    "defaultDate": _jsdate_today,
-    "maxDate": _jsdate_today,
+    "defaultDate": _js_now(),
+    "maxDate": _js_now(),
     "format": "yyyy-mm-dd"
 }
 

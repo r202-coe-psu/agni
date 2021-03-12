@@ -29,6 +29,11 @@ module = Blueprint('site', __name__)
 modis_hotspots = {}
 viirs_hotspots = {}
 
+@module.record
+def on_bp_register(state):
+    app = state.app
+    fetch_nrt.set_token(app.config.get('FIRMS_API_TOKEN'))
+
 def get_viirs_hotspots(date):
     return fetch_nrt.get_nrt_data(date, src=fetch_nrt.SRC_VIIRS)
 
@@ -39,7 +44,6 @@ fetch_hotspots = {
     'viirs': get_viirs_hotspots,
     'modis': get_modis_hotspots
 }
-
 
 ROI_NONE = ['Thailand', 'all']
 def roi_list_module():
