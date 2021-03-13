@@ -69,7 +69,7 @@ def check_token(token=None):
         raise NoTokenError("FIRMS API Token key required.")
 
 def make_url(src, date, api_url=None):
-    if api_url is not None:
+    if api_url is None:
         api_url = API_URL
 
     if isinstance(src, SatSrc):
