@@ -82,8 +82,8 @@ class Fetcher:
             latest = self.influx_latest_time()
             logger.debug('Latest time: {}'.format(latest.isoformat()))
         except IndexError as e:
-            logger.debug('Latest time: None!')
             latest = self.oldest_data_date()
+            logger.debug('Latest time: None!')
 
         fetch_start = max(self.oldest_data_date(), latest)
         fetch_end = self.current_time(utc=True)
@@ -160,12 +160,12 @@ class NotifierDaemon(threading.Thread):
                         self.send_notification(user, region, point_within)
 
     def send_notification(self, user, region, data):
-        user_token = user.line_token
+        token = user.token
         logger.debug(
             "Found new {} points in area '{}', notifying {}...".format(
                 len(data),
                 region.human_name,
-                user.user_alias
+                user.name
             ))
         pass
 

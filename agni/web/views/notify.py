@@ -12,10 +12,9 @@ logger = logging.getLogger(__name__)
 module = Blueprint('notify', __name__, url_prefix='/notify-register')
 
 @module.route('/', methods=['GET','POST'])
-def notify_register_start():
+def start_register():
     html = """
-    start:
-    <a href="{{auth_start}}" target="_blank">here</a>
+    start <a href="{{auth_start}}" target="_blank">here</a>
     """
     return render_template_string(
         html, 
@@ -30,17 +29,18 @@ def authorize():
 
 @module.route('/callback', methods=['GET','POST'])
 def callback():
-    logger.debug("Callback Received")
     # get token from code
     if request.method == 'GET':
         mode = "request.args"
         token = oauth2c.linenotify.authorize_access_token()
     elif request.method == 'POST':
+        # code and thatnot is parsed from form POSTed instead of
+        # using query args
         mode = "form_post"
         params = request.form.to_dict(flat=True)
         token = oauth2c.linenotify.authorize_access_token(**params)
 
-    # use token
+    # try using token: get status
     try:
         resp = oauth2c.linenotify.get('status', token=token)
         resp.raise_for_status()
@@ -48,8 +48,7 @@ def callback():
         pass
     status = resp.json()
 
-    return render_template_string(
-        """
+    html_template = """
         <style>
         span { font-family: monospace; }
         </style>
@@ -64,6 +63,8 @@ def callback():
         {% endif %}
         got status: <span>{{ status|safe }}</span>
         <body>
-        """,
+        """
+    return render_template_string(
+        html_template,
         token=token, status=status, mode=mode, form_got=params
     )

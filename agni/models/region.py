@@ -38,9 +38,9 @@ class Region(me.Document):
 
 
 class UserRegionNotify(me.Document):
-    user_alias = me.StringField(required=True)
+    name = me.StringField(required=True)
     notification = me.BooleanField(default=True)
-    line_token = me.StringField()
+    token = me.StringField()
     regions = me.ListField(me.ReferenceField(Region))
 
     meta = {

@@ -13,16 +13,16 @@ API_URL = 'https://nrt4.modaps.eosdis.nasa.gov/api/v2/content/archives/FIRMS/'
 __TOKEN = None
 
 class SatSrc:
-    name = None
-    url = None
-    filename = None
-    zone = None
-
-    def __init__(self, name=None, url=None, filename=None, zone=None):
+    def __init__(self, name=None, url=None, filename=None, base_url=None):
         self.name = name
+        self.base_url = base_url
         self.url = url
-        self.zone = zone
         self.filename = filename
+    
+    def to_url(self, date):
+        filedate = timefmt.format_julian(date)
+        filename_dated = "{}{}.txt".format(self.filename, filedate)
+        return '/'.join([self.base_url, self.url, filename_dated])
 
 SRC_VIIRS = {
     'name': 'viirs',
@@ -68,7 +68,10 @@ def check_token(token=None):
     else:
         raise NoTokenError("FIRMS API Token key required.")
 
-def make_url(src, date):
+def make_url(src, date, api_url=None):
+    if api_url is not None:
+        api_url = API_URL
+
     if isinstance(src, SatSrc):
         url = src.url
         filename = src.filename
@@ -79,7 +82,7 @@ def make_url(src, date):
     filedate = timefmt.format_julian(date)
     filename_dated = "{}{}.txt".format(filename, filedate)
 
-    return ''.join([API_URL, url, filename_dated])
+    return ''.join([api_url, url, filename_dated])
 
 def process_csv(raw_csv):
     """preprocess NRT raw CSV to python dict
