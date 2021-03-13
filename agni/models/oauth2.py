@@ -16,7 +16,9 @@ class OAuth2Token(me.Document):
     expires = me.DateTimeField(required=True,
                                default=datetime.datetime.now)
 
-    meta = {'collection': 'oauth2_tokens'}
+    meta = {
+        'collection': 'oauth2_tokens'
+    }
 
     @property
     def expires_at(self):
@@ -28,4 +30,19 @@ class OAuth2Token(me.Document):
             token_type=self.token_type,
             refresh_token=self.refresh_token,
             expires_at=self.expires_at,
+        )
+
+class LineNotifyToken(me.Document):
+    name = me.StringField(required=True)
+    access_token = me.StringField(required=True)
+    target_type = me.StringField()
+
+    meta = {
+        'collection': 'line_notify_tokens'
+    }
+
+    def to_dict(self):
+        return dict(
+            name=self.name,
+            access_token=self.access_token
         )

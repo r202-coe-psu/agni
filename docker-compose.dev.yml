@@ -27,8 +27,8 @@ services:
             INFLUXDB_DB: "hotspots"
             INFLUXDB_USER: "agnitest"
             INFLUXDB_USER_PASSWORD: "agnitest"
-        healthcheck:
-            test: wget -O - http://localhost:8086/health | grep -q 'ready for queries and writes'
+        #healthcheck:
+        #    test: wget -O - http://localhost:8086/health | grep -q 'ready for queries and writes'
     web:
         build: .
         image: agni-image

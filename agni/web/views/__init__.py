@@ -1,11 +1,7 @@
-
-from . import site
+from . import site, notify
 # from . import accounts
 
-modules = [site]
-
-
-
+modules = [site, notify]
 
 def get_subblueprints(views=[]):
     blueprints = []

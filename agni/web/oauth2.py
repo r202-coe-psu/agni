@@ -25,7 +25,6 @@ def update_token(name, token):
     item.save()
     return item
 
-
 oauth2_client = OAuth()
 
 def handle_authorize_google(remote, token, user_info):
@@ -114,16 +113,28 @@ def handle_authorize_google(remote, token, user_info):
 
 
 def init_oauth(app):
-    oauth2_client.init_app(app,
-                           fetch_token=fetch_token,
-                           update_token=update_token)
-    
-    oauth2_client.register('principal')
-    oauth2_client.register('engpsu')
+    #oauth2_client.init_app(app,
+    #                       fetch_token=fetch_token,
+    #                       update_token=update_token)
+
+    oauth2_client.init_app(app)
+    oauth2_client.register(
+        name='linenotify',
+        authorize_url="https://notify-bot.line.me/oauth/authorize",
+        authorize_params={
+            'scope': 'notify', 
+            'response_mode': 'form_post'
+        },
+        access_token_url="https://notify-bot.line.me/oauth/token",
+        api_base_url="https://notify-api.line.me/api/",
+    )
+
+    #oauth2_client.register('principal')
+    #oauth2_client.register('engpsu')
     # oauth2_client.register('google')
 
-    google_bp = loginpass.create_flask_blueprint(
-            backends=[loginpass.Google],
-            oauth=oauth2_client,
-            handle_authorize=handle_authorize_google)
-    app.register_blueprint(google_bp, url_prefix='/google')
+    #google_bp = loginpass.create_flask_blueprint(
+    #        backends=[loginpass.Google],
+    #        oauth=oauth2_client,
+    #        handle_authorize=handle_authorize_google)
+    #app.register_blueprint(google_bp, url_prefix='/google')
