@@ -1,7 +1,7 @@
 from flask import (
     Blueprint, 
     current_app, request, session,
-    jsonify, url_for, render_template_string, redirect
+    jsonify, url_for, render_template_string, redirect, abort
 )
 
 from ..oauth2 import oauth2_client as oauth2c
@@ -101,26 +101,34 @@ def register_page():
 
 @module.route('/register', methods=['POST'])
 def register_form():
-    form = NotificationRegisterForm()
+    form = NotificationRegisterForm(request.form)
     form.regions.choices = [('kuankreng', 'Kuan Kreng')]
 
     if form.is_submitted():
+        # clicks on authorize button
         if form.notify_authorize.data:
             session['form_preauth'] = dict(form.data)
             return redirect(url_for('notify.authorize'))
-        
+
+        # clicks on confirm button
+        # user should have clicked on the authorize button before
         if form.validate() and form.confirm.data:
             token = oauth2c.linenotify.authorize_access_token(
                 code=form.code.data,
                 state=form.state.data
             )
             # commit to db here
+
             # clear session
             # CLEAR IT AFTER GETTING TOKEN, YOU HAVE BEEN WARNED
+            # ELSE CSRF MISMATCH AND OTHER WEIRD SHIT
             session.clear()
+            # perhaps redirect back to main page?
             return jsonify(form.data, token)
     
-
-    form_data = session.pop('form_preauth', {})
-    auth_data = session.pop('form_postauth', {})
-    return jsonify(form.data, form.errors)
+    # something went wrong, shouldn't be here
+    if current_app.debug:
+        form_data = session.pop('form_preauth', {})
+        auth_data = session.pop('form_postauth', {})
+        return jsonify(form.data, form.errors), 400
+    return abort(400)
