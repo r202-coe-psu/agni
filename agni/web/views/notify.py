@@ -76,7 +76,7 @@ def register_form():
             # commit token to db for later use
             notify = UserRegionNotify()
             notify.name = form.name.data
-            notify.acccess_token = token.get('access_token')
+            notify.access_token = token.get('access_token')
             regions = form.regions.data
             for region in regions:
                 reg_db = Region.objects.get(name=region)
