@@ -6,6 +6,8 @@ from flask import (
 
 from ..oauth2 import oauth2_client as oauth2c
 
+from ..forms.notify import NotificationRegisterForm
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -34,18 +36,15 @@ def callback():
         mode = "request.args"
         token = oauth2c.linenotify.authorize_access_token()
     elif request.method == 'POST':
-        # code and thatnot is parsed from form POSTed instead of
+        # code and whatnot is parsed from form POST instead of
         # using query args
         mode = "form_post"
         params = request.form.to_dict(flat=True)
         token = oauth2c.linenotify.authorize_access_token(**params)
 
     # try using token: get status
-    try:
-        resp = oauth2c.linenotify.get('status', token=token)
-        resp.raise_for_status()
-    except:
-        pass
+    resp = oauth2c.linenotify.get('status')
+    #resp.raise_for_status()
     status = resp.json()
 
     html_template = """
@@ -53,14 +52,11 @@ def callback():
         span { font-family: monospace; }
         </style>
         <body>
-        got token: <span>{{ token|safe }}</span>
-        <br />
-        got from mode: <span>{{ mode|safe }}</span>
-        <br />
+        got from mode: <span>{{ mode|safe }}</span> <br />
         {% if mode == "form_post" %}
-        <span>{{ form_got|safe }}</span>
-        <br />
+        content: <span>{{ form_got|safe }}</span> <br />
         {% endif %}
+        got token: <span>{{ token|safe }}</span> <br />
         got status: <span>{{ status|safe }}</span>
         <body>
         """
@@ -68,3 +64,8 @@ def callback():
         html_template,
         token=token, status=status, mode=mode, form_got=params
     )
+
+@module.route('/register', methods=['GET, POST'])
+def register():
+    form = NotificationRegisterForm()
+    return None, 204

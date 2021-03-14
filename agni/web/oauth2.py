@@ -1,7 +1,5 @@
 from flask import g, config, session, redirect, url_for
 from flask_login import current_user, login_user
-# from authlib.integrations.flask_client import OAuth
-#from authlib.flask.client import OAuth
 from authlib.integrations.flask_client import OAuth
 import loginpass
 
@@ -28,7 +26,6 @@ def update_token(name, token):
 oauth2_client = OAuth()
 
 def handle_authorize_google(remote, token, user_info):
-
     if not user_info:
         return redirect(url_for('accounts.login'))
 

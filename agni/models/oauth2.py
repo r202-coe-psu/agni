@@ -4,7 +4,6 @@ import mongoengine as me
 
 # from . import users
 
-
 class OAuth2Token(me.Document):
     user = me.ReferenceField("User", dbref=True)
     name = me.StringField(required=True)
@@ -35,7 +34,6 @@ class OAuth2Token(me.Document):
 class LineNotifyToken(me.Document):
     name = me.StringField(required=True)
     access_token = me.StringField(required=True)
-    target_type = me.StringField()
 
     meta = {
         'collection': 'line_notify_tokens'

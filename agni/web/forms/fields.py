@@ -1,5 +1,5 @@
 from wtforms import widgets
-from wtforms.fields import Field
+from wtforms.fields import Field, SelectMultipleField
 
 class TagListField(Field):
     widget = widgets.TextInput()
@@ -34,3 +34,8 @@ class TagListField(Field):
 
 class TextListField(TagListField):
     widget = widgets.TextArea()
+
+# ref: https://gist.github.com/ectrimble20/468156763a1389a913089782ab0f272e
+class MultiCheckboxField(SelectMultipleField):
+    widget = widgets.ListWidget(prefix_label=False)
+    option_widget = widgets.CheckboxInput()

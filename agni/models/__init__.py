@@ -2,7 +2,8 @@
 # from . import oauth2
 
 # from .users import User
-# from .oauth2 import OAuth2Token
+from .oauth2 import OAuth2Token
+from .region import Region, UserRegionNotify
 
 __all__ = [
            # oauth2,
