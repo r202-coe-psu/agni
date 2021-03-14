@@ -40,7 +40,7 @@ class Region(me.Document):
 class UserRegionNotify(me.Document):
     name = me.StringField(required=True)
     notification = me.BooleanField(default=True)
-    token = me.StringField()
+    acccess_token = me.StringField()
     regions = me.ListField(me.ReferenceField(Region))
 
     meta = {

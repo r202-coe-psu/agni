@@ -17,11 +17,11 @@ except ImportError:
 
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv, ranger, timefmt
-from agni.models import create_influxdb
-from agni.models.region import Region
+from agni.models import create_influxdb, Region
 from agni.processing import firecluster, firepredictor, heatmap
-from agni.web import regions
-from agni.web.forms.mapcontrols import HistoryControlForm
+
+from .. import regions
+from ..forms.mapcontrols import HistoryControlForm
 
 module = Blueprint('site', __name__)
 

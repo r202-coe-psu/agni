@@ -1,32 +1,9 @@
 {% extends "/base/default-page.html" %}
 {% block content %}
 
-{% macro get_validate_class(errors) -%}
-{%- set class_str = 'validate' -%}
-{% if errors | count > 0 -%}
-{% set class_str = class_str + ' ' + 'invalid' %}
-{%- endif %}
-{{- class_str -}}
-{%- endmacro %}
-
-{% macro get_error_messages(errors) -%}
-{{ errors | join(', ') }}
-{%- endmacro %}
-
 <div class="row card-panel">
   <div class="col s12">
     <h5>Register for hotspots notifications</h5>
-    
-    {% if errors is not undefined %}
-    <div class="card red lighten-5">
-      <div class="card-content red-text text-darken-4">
-        <span class="card-title">Errors</span>
-          {% for error in errors %}
-          <p>{{ error.detail }}</p>
-          {% endfor %}
-      </div>
-    </div>
-    {% endif %}
 
     <form action="{{ url_for('notify.register_form') }}" method="post">
       {{ form.hidden_tag() }}
