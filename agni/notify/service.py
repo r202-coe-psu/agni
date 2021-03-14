@@ -29,11 +29,14 @@ class NotifierDaemon(threading.Thread):
         data = data_df.to_dict('records')
         regions = Region.objects
         for region in regions:
-            r = region.to_geojson()
-            point_within = filtering.filter_shape(data, r)
+            reg = region.to_geojson()
+            point_within = filtering.filter_shape(data, reg)
+            logger.debug("Point within {}: {}".format(
+                region.name, len(point_within)
+            ))
             if len(point_within) > 0:
                 subbed_users = UserRegionNotify.objects(
-                    regions__name=region.name
+                    regions__contains=region.id
                 ).exclude('regions')
                 for user in subbed_users:
                     if user.notification:
@@ -47,7 +50,12 @@ class NotifierDaemon(threading.Thread):
                 region.human_name,
                 user.name
             ))
-        pass
+        line.send(
+            "Found new {} hotspots within region '{}'.".format(
+                len(data), region.human_name
+            ), 
+            token=token
+        )
 
     def stop(self):
         self.running = False

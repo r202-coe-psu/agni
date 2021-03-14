@@ -55,7 +55,6 @@ def filter_shape(nrt_points, shape, buffer=None):
 
     # make RoI shapes
     shp_geom = shape_utm.get('geometry')
-    print(shape_utm.keys())
     roi_shape = shapely.geometry.shape(shp_geom).buffer(0)
 
     roi_shape = roi_shape.buffer(buffer_radius)
