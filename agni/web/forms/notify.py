@@ -26,6 +26,6 @@ class NotificationRegisterForm(FlaskForm):
         validators=[validators.DataRequired()]
     )
 
-    notify_authorize = fields.SubmitField('Authorize LINE Notify')
+    notify_authorize = fields.SubmitField('Connect to LINE Notify')
     confirm = fields.SubmitField('Confirm Registration')
 

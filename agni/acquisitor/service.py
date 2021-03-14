@@ -56,7 +56,7 @@ class Fetcher:
         return result
 
     def filter_newer_data(self, data, min_time, timekey='time'):
-        min_time = min_time.replace(microsecond=0)
+        #min_time = min_time.replace(microsecond=0)
         newer = data[data[timekey] > min_time]
         return newer
 
@@ -78,8 +78,7 @@ class Fetcher:
 
     def update_data(self, write=True):
         latest = self.latest_time()
-        fetch_start = (max(self.oldest_data_date(), latest)
-                       + datetime.timedelta(minutes=1))
+        fetch_start = max(self.oldest_data_date(), latest)
         fetch_end = self.current_time(utc=True)
         logger.debug(
             'Start: {}, End: {}'.format(

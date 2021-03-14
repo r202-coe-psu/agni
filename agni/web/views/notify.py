@@ -1,7 +1,8 @@
 from flask import (
     Blueprint, 
     current_app, request, session,
-    jsonify, url_for, render_template_string, redirect, abort
+    jsonify, url_for, redirect, abort,
+    render_template, render_template_string
 )
 
 from ..oauth2 import oauth2_client as oauth2c
@@ -25,53 +26,23 @@ def start_register():
 
 @module.route('/authorize')
 def authorize():
-    #redirect_uri = 'http://localhost:8080' + url_for('notify.callback')
     redirect_uri = url_for('notify.callback', _external=True)
     logger.debug("redirect_uri: {}".format(redirect_uri))
     return oauth2c.linenotify.authorize_redirect(redirect_uri)
 
 @module.route('/callback', methods=['GET','POST'])
 def callback():
-    token = None
-    # get token from code
+    # get code and status
     if request.method == 'GET':
-        mode = "request.args"
         params = request.args.to_dict(flat=True)
-        #token = oauth2c.linenotify.authorize_access_token()
     elif request.method == 'POST':
-        # code and whatnot is parsed from form POST instead of
-        # using query args
-        mode = "form_post"
+        # code and status is parsed from form POST instead of query args
         params = request.form.to_dict(flat=True)
-        #token = oauth2c.linenotify.authorize_access_token(**params)
     
     if 'form_preauth' in session:
         session['form_postauth'] = params
-        return redirect(url_for('notify.register_page'))
 
-    if token is not None:
-        # try using token: get status
-        resp = oauth2c.linenotify.get('status')
-        #resp.raise_for_status()
-        status = resp.json()
-
-        html_template = """
-            <style>
-            span { font-family: monospace; }
-            </style>
-            <body>
-            got from mode: <span>{{ mode|safe }}</span> <br />
-            {% if mode == "form_post" %}
-            content: <span>{{ form_got|safe }}</span> <br />
-            {% endif %}
-            got token: <span>{{ token|safe }}</span> <br />
-            got status: <span>{{ status|safe }}</span>
-            <body>
-            """
-        return render_template_string(
-            html_template,
-            token=token, status=status, mode=mode, form_got=params
-        )
+    return redirect(url_for('notify.register_page'))
 
 @module.route('/register', methods=['GET'])
 def register_page():
@@ -97,7 +68,14 @@ def register_page():
     form = NotificationRegisterForm(data=all_data)
     form.regions.choices = [('kuankreng', 'Kuan Kreng')]
 
-    return render_template_string(html, form=form, auth=bool(auth_data))
+    auth = bool(auth_data)
+    if auth:
+        form.notify_authorize.label.text = 'LINE Notify Connected'
+
+    return render_template(
+        '/site/notify-register.html', 
+        form=form, auth=auth
+    )
 
 @module.route('/register', methods=['POST'])
 def register_form():
