@@ -186,7 +186,8 @@ def request_nrt(date=None, src=SRC_VIIRS, token=None):
     return r
 
 def get_nrt_data(date=None, src=None, silent_404=True, token=None):
-    src = src or SRC_VIIRS
+    if src is None:
+        src = SRC_VIIRS
     token = check_token(token)
 
     hotspots = []

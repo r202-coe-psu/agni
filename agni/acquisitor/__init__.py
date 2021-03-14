@@ -2,8 +2,10 @@ import time
 import queue
 import datetime
 
-from .service import Fetcher, NotifierDaemon, sleep_log
+from .service import Fetcher, sleep_log
+
 from .. import models
+from ..notify import NotifierDaemon
 from ..util import timefmt
 
 import logging
@@ -40,8 +42,9 @@ class Server:
         while self.running:
             try:
                 new_data = self.fetcher.update_data(write=True)
-                for q in self.out_queues:
-                    q.put(new_data)
+                if len(new_data) > 0:
+                    for q in self.out_queues:
+                        q.put(new_data)
                 sleep_log(self.SLEEP_LONG)
             except Exception as e:
                 logger.exception(e)

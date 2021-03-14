@@ -1,5 +1,4 @@
 import datetime
-import ciso8601
 
 EPOCH_START = datetime.datetime(1970,1,1)
 _DELTA_ZERO = datetime.timedelta(0)

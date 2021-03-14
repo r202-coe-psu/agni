@@ -5,8 +5,6 @@ For sending a LINE Notify message (with or without image)
 Reference: https://engineering.linecorp.com/en/blog/using-line-notify-to-send-messages-to-line-from-the-command-line/
 """
 
-
-import sys
 import requests
 
 def send_message(token, msg, img=None):
