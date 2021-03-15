@@ -37,7 +37,7 @@ class HistoryControlForm(FlaskForm):
         YearMonthSelect,
         label='Time End'
     )
-    data_type = RadioField(
+    data_type = SelectField(
         label="Data Type", 
         choices=FORMS_NRT_VALUES,
         validate_choice=True,

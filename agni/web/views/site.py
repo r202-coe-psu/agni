@@ -3,17 +3,11 @@ from flask import (
     jsonify, send_from_directory
 )
 
-import pathlib
 import datetime
 
 import geojson
 import shapely
 import shapely.geometry
-
-try:
-    import importlib.resources as pkg_res
-except ImportError:
-    import importlib_resources as pkg_res
 
 from agni.acquisitor import fetch_nrt, filtering
 from agni.util import nrtconv, ranger, timefmt
@@ -45,30 +39,11 @@ fetch_hotspots = {
     'modis': get_modis_hotspots
 }
 
-ROI_NONE = ['Thailand', 'all']
-def roi_list_module():
-    roi_list = [ROI_NONE]
-
-    region_list = [ 
-        roi
-        for roi in pkg_res.contents(regions) 
-        if 'geojson' in pathlib.Path(roi).suffix
-    ]
-    for roi_file in region_list:
-        # get region name from geojson
-        roi_str = pkg_res.read_text(regions, roi_file)
-        roi_geojson = geojson.loads(roi_str)
-        roi_feature = roi_geojson['features'][0]
-        roi_label = roi_feature['properties']['name']
-        # get matching filename
-        roi_def = pathlib.Path(roi_file).stem
-        roi_list.append([roi_label, roi_def])
-    return roi_list
+ROI_NONE = ['all', 'Thailand']
 
 def roi_label_db():
     roi_list = [ROI_NONE]
-    reglist = Region.objects
-    roi_list += [[c.human_name, c.name] for c in reglist]
+    roi_list += Region.region_choices()
     return roi_list
 
 @module.route('/')
@@ -201,8 +176,8 @@ def get_geojson_hotspots():
 
     # if RoI filtering is set
     if roi_name is not None and roi_name != 'all':
-        s = pkg_res.read_text(regions, '{}.geojson'.format(roi_name))
-        roi = geojson.loads(s)
+        roi = Region.objects.get(name=roi_name)
+        roi = roi.to_geojson()
         filtered = filtering.filter_shape(sat_points, roi)
         sat_points = filtered
     elif roi_name == 'all':
@@ -216,11 +191,10 @@ def get_geojson_hotspots():
 
 @module.route('/regions/<roi>')
 def serve_roi_file(roi):
-    region = Region.objects(name=roi).first()
+    region = Region.objects.get(name=roi)
     if region:
-        return jsonify(region)
-    # fallback
-    return send_from_directory('regions', roi)
+        return jsonify(region.to_geojson())
+    return '', 404
 
 @module.route('/clustered.geojson')
 def get_clustered_hotspots():
@@ -243,8 +217,8 @@ def get_clustered_hotspots():
 
     # if RoI filtering is set
     if roi_name is not None and roi_name != 'all':
-        s = pkg_res.read_text(regions, '{}.geojson'.format(roi_name))
-        roi = geojson.loads(s)
+        roi = Region.objects.get(name=roi_name)
+        roi = roi.to_geojson()
         filtered = filtering.filter_shape(sat_points, roi)
         sat_points = filtered
     elif roi_name == 'all':
@@ -326,10 +300,10 @@ def get_region_histogram(region, data_type=None):
 
     #print([start, end])
     # get region bbox for faster processing, no db yet
-    roi_str = pkg_res.read_text(regions, "{}.geojson".format(region))
-    roi_geojson = geojson.loads(roi_str)
+    roi = Region.objects.get(name=region)
+    roi_geojson = roi.to_geojson()
     roi_shape = shapely.geometry.shape(
-        roi_geojson.features[0].geometry
+        roi_geojson.geometry
     ).buffer(0)
     roi_bbox = roi_shape.bounds
 

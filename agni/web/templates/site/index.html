@@ -26,12 +26,12 @@
   <div class="col s12 m8 l9 push-m4 push-l3" id="mapdisplay"></div>
   <!-- map controls -->
   <div class="col s12 m4 l3 pull-m8 pull-l9" id="mapcontrols">
-    <div class="container">
-      <div>
+    <div>
+      <div class="map-ctrl-container">
         <form action="#" id="region-select">
           <div class="row input-field">
             <select id="region-list" class="select">
-              {% for label, roi in roi_list %}
+              {% for roi, label in roi_list %}
               {% if loop.first %}
               <option value="{{roi}}" selected="selected">{{label}}</option>"
               {% else %}
@@ -43,14 +43,17 @@
           </div>
         </form>
       </div>
+    </div>
+    
+    {#<div class="divider"></div>#}
 
-      <div class="divider"></div>
+    <ul class="tabs tabs-fixed-width" id="mode-tabs">
+      <li class="tab col"><a href="#history-controls">History</a></li>
+      <li class="tab col"><a class="active" href="#hotspot-controls">Hotspots</a></li>
+      <li class="tab col"><a href="#predict-controls">Predict</a></li>
+    </ul>
 
-      <ul class="tabs tabs-fixed-width">
-        <li class="tab col"><a class="active" href="#hotspot-controls">Predict</a></li>
-        <li class="tab col"><a href="#history-controls">History</a></li>
-      </ul>
-
+    <div class="map-ctrl-container">
       <div id="hotspot-controls">
         <div class="section">
           <form action="#" id="map-options">
@@ -70,7 +73,7 @@
 
         <div class="section">
           <form action="#" id="predict-options">
-            <div class="row" id="zone-picker">
+            <div class="row hide" id="zone-picker">
               <label for="zone-picker">Prediction Area<label>
               <p>
                 <label>
@@ -84,22 +87,24 @@
                   <span>Rectangle</span>
                 </label>
               </p>
+            </div>
               <p>
                 <label for="ignore-noise">
                   <input id="ignore-noise" type="checkbox" class="filled-in" />
                   <span>Ignore noise</span>
                 </label>
               </p>
-            </div>
 
             <div class="row right-align">
-              <a class="waves-effect waves-light btn" id="draw-zone">Draw Zone</a>
+              <a class="waves-effect waves-light btn hide" id="draw-zone">Draw Zone</a>
               <a class="waves-effect waves-light btn" id="do-predict">Predict</a>
             </div>
           </form>
         </div>
 
         <span id="hotspot-info"></span>
+      </div>
+      <div id="predict-controls">
       </div>
       <div id="history-controls">
         <div class="section">
@@ -123,17 +128,10 @@
 
             <div class="row subopts-mode" id="hist-mode-year">
               {{ year_month(hisctrl.start) }}
-              
               {{ year_month(hisctrl.end) }}
 
               {{ hisctrl.data_type.label }}
-              {% for subfield in hisctrl.data_type %}
-              <p>
-                <label>
-                  {{ subfield(class_="with-gap") }} <span>{{ subfield.label.text }}</span>
-                </label>
-              </p>
-              {% endfor %}
+              {{ hisctrl.data_type() }}
             </div>
 
             <div class="row right-align">

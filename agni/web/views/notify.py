@@ -42,7 +42,7 @@ def register_page():
     all_data = {**form_data, **auth_data}
 
     form = NotificationRegisterForm(data=all_data)
-    form.regions.choices = [('kuankreng', 'Kuan Kreng')]
+    form.regions.choices = Region.region_choices()
 
     auth = bool(auth_data)
     if auth:
@@ -56,7 +56,7 @@ def register_page():
 @module.route('/', methods=['POST'])
 def register_form():
     form = NotificationRegisterForm(request.form)
-    form.regions.choices = [('kuankreng', 'Kuan Kreng')]
+    form.regions.choices = Region.region_choices()
 
     if form.is_submitted():
         # clicked on authorize button
