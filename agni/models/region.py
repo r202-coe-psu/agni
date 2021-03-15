@@ -35,13 +35,22 @@ class Region(me.Document):
 
     def to_geojson(self):
         return geojson.Feature(**self.to_dict())
+    
+    @classmethod
+    def region_choices(cls, swap=False):
+        reglist = cls.objects.only('name', 'human_name')
+        if swap:
+            return list((r.human_name, r.name) for r in reglist)
+        return list((r.name, r.human_name) for r in reglist)
 
 
 class UserRegionNotify(me.Document):
     name = me.StringField(required=True)
     notification = me.BooleanField(default=True)
-    access_token = me.StringField()
     regions = me.ListField(me.ReferenceField(Region))
+    
+    access_token = me.StringField()
+    token_type = me.StringField(default="bearer")
 
     meta = {
         'collection': 'user_region_notify'
@@ -53,5 +62,13 @@ class UserRegionNotify(me.Document):
             "notification": self.notification,
             "regions": [
                 r.human_name for r in self.regions
-            ]
+            ],
+            "token": self.token
         }
+    
+    @property
+    def token(self):
+        return dict(
+            access_token=self.access_token,
+            token_type=self.token_type
+        )
