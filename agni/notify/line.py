@@ -1,24 +1,18 @@
-"""line_notify.py
-  
-For sending a LINE Notify message (with or without image)
-  
-Reference: https://engineering.linecorp.com/en/blog/using-line-notify-to-send-messages-to-line-from-the-command-line/
-"""
-
 import requests
+from authlib.integrations.requests_client import OAuth2Auth
 
-def send_message(token, msg, img=None):
-    URL = 'https://notify-api.line.me/api/notify'
-    """Send a LINE Notify message (with or without an image)."""
-    headers = {'Authorization': 'Bearer ' + token}
-    payload = {'message': msg}
-    files = {'imageFile': open(img, 'rb')} if img else None
-    r = requests.post(URL, headers=headers, params=payload, files=files)
-    return r.status_code
+NOTIFY_URL = 'https://notify-api.line.me/api/notify'
 
-def send(message, token=None):
-    if token is None:
-        token = "uqDJpms2istxrdDUF5Eim858ZFIoW5SitexwV5zc2Sq"
+def send(message, token, **kwargs):
+    req = send_message(message=message, token=token, **kwargs)
+    return req.status_code
 
-    status_code = send_message(token, message)
-    print('status_code = {}'.format(status_code))
+def send_message(message, token, **kwargs):
+    auth = OAuth2Auth(token)
+    payload = {
+        'message': message,
+        **kwargs
+    }
+    req = requests.post(NOTIFY_URL, auth=auth, params=payload)
+    req.raise_for_status()
+    return req

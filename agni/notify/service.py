@@ -21,7 +21,6 @@ class NotifierDaemon(threading.Thread):
         self.running = True
         while self.running:
             data = self.in_queue.get()
-            line.send("พบเจอจุดความร้อนใหม่ในไทย {} จุด".format(len(data)))
             logger.debug('Got new data of length {}.'.format(len(data)))
             self.process_new_data(data)
 
@@ -43,7 +42,7 @@ class NotifierDaemon(threading.Thread):
                         self.send_notification(user, region, point_within)
 
     def send_notification(self, user, region, data):
-        token = user.access_token
+        token = user.token
         logger.debug(
             "Found new {} points in area '{}', notifying {}...".format(
                 len(data),
@@ -51,8 +50,9 @@ class NotifierDaemon(threading.Thread):
                 user.name
             ))
         line.send(
-            "Found new {} hotspots within region '{}'.".format(
-                len(data), region.human_name
+            "Found {count} new hotspots within region '{region}'.".format(
+                count=len(data), 
+                region=region.human_name
             ), 
             token=token
         )
