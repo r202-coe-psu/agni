@@ -72,30 +72,6 @@ def index():
         hisctrl=history_controls,
     )
 
-@module.route('/hotspots')
-def get_all_hotspots():
-    queryargs = request.args
-
-    requested_date = queryargs.get('date', type=str)
-    today = datetime.datetime.today()
-    datestart = today
-    if requested_date is not None:
-        try:
-            datestart = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
-        except ValueError:
-            datestart = today
-    target_julian = datestart.strftime('%Y%j')
-    # in practice, we does query on db and return data
-    # probably
-    ret = {}
-    ret['date_jul'] = target_julian
-    ret['modis'] = get_modis_hotspots(datestart)
-    ret['viirs'] = get_viirs_hotspots(datestart)
-    ret['status'] = 'success'
-
-    # return as json
-    return jsonify(ret)
-
 def lookup_external(dates, sat_src, bounds=None):
     sat_points = []
     for date in dates:
@@ -150,44 +126,6 @@ def lookup_data(
     sat_points = lookup_db(lookup_dates, bounds)
 
     return sat_points
-
-@module.route('/hotspots.geojson')
-def get_geojson_hotspots():
-    queryargs = request.args
-
-    requested_date = queryargs.get('date', type=str)
-    requested_source = queryargs.get('source', type=str)
-    roi_name = queryargs.get('roi', type=str)
-
-    today = datetime.datetime.today()
-    datestart = today
-    if requested_date is not None:
-        try:
-            datestart = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
-        except ValueError:
-            datestart = today
-    target_julian = datestart.strftime('%Y%j')
-
-    sat_src = None
-    if requested_source is not None:
-        sat_src = requested_source
-
-    sat_points = lookup_data(datestart, sat_src=sat_src)
-
-    # if RoI filtering is set
-    if roi_name is not None and roi_name != 'all':
-        roi = Region.objects.get(name=roi_name)
-        roi = roi.to_geojson()
-        filtered = filtering.filter_shape(sat_points, roi)
-        sat_points = filtered
-    elif roi_name == 'all':
-        sat_points = filtering.filter_bbox(sat_points, filtering.TH_BBOX)
-
-    if len(sat_points) > 0:
-        sat_geojson = nrtconv.to_geojson(sat_points)
-        return jsonify(sat_geojson)
-    else:
-        return '', 204
 
 @module.route('/regions/<roi>')
 def serve_roi_file(roi):
