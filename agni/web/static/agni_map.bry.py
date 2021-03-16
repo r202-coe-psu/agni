@@ -2,7 +2,7 @@ from browser import document, window, ajax, bind, timer
 import javascript as js
 import datetime
 
-from agnimap.commons import toast
+from agnimap.commons import toast, formdata_to_dict
 
 leaflet = window.L
 turf = window.turf
@@ -216,10 +216,10 @@ def switch_subopts(mode):
 
 @bind('#history-options', 'change')
 def history_options_changed(ev):
-    if ev.target.attrs.get('name', None) == 'histmode':
-        pass
-        #value = document['history-options'].histmode.value
-        #switch_subopts(mode=value)
+    #if ev.target.attrs.get('name', None) == 'mode':
+    if 'mode' in ev.target.id:
+        value = document['history-options'].mode.value
+        switch_subopts(mode=value)
 
 predict_zone = 'zone-roi'
 zone_layer = leaflet.LayerGroup.new()
@@ -387,7 +387,6 @@ def show_history(ev):
     form_dict = dict(x for x in form_data.entries())
 
     data_type = form_dict['data_type']
-    csrf_token = form_dict['csrf_token']
 
     def generate_colors_func(colors, lower, upper):
         color_class = len(colors)
@@ -476,7 +475,7 @@ def show_history(ev):
         toast("History: Error '{}': {}".format(jq_error, text_error),
               icon='error')
 
-    wtforms_csrf_inject(csrf_token)
+    #wtforms_csrf_inject(csrf_token)
     jq.ajax(
         "/history/{region}/{data_type}".format(
             region=roi_name, data_type=data_type
@@ -673,8 +672,8 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
 
 def map_load_init(ev):
     query_ajax_cluster()
-    #value = document['history-options'].histmode.value
-    #switch_subopts(mode=value)
+    value = document['history-options'].mode.value
+    switch_subopts(mode=value)
 
 lmap.on('load', map_load_init)
 

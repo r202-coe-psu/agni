@@ -19,13 +19,38 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='agni_map.css') }}">
 {% endblock additional_head %}
 
+{% macro year_month(form) -%}
+<div class="row valign-wrapper">
+  <span class="inline col s4">{{ form.label.text }}</span>
+  <div class="input-field inline col s3">
+    {{ form.year() }}
+    {{ form.year.label }}
+    <!--<span class="helper-text">{{ form.year.label.text }}</span>-->
+  </div>
+  <div class="input-field inline col s5">
+    {{ form.month() }}
+    {{ form.month.label }}
+    <!--<span class="helper-text">{{ form.month.label.text }}</span>-->
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro radio(field) %}
+<p>
+  <label>
+    {{ field(class_='with-gap') }}
+    <span>{{ field.label.text }}</span>
+  </label>
+</p>
+{% endmacro %}
+
 {# barecontent block sits outside of the materialize css container #}
 {% block barecontent %}
 <div class="row" id="main-row">
   <!-- map -->
-  <div class="col s12 m8 l9 push-m4 push-l3" id="mapdisplay"></div>
+  <div class="col s12 m8 push-m4" id="mapdisplay"></div>
   <!-- map controls -->
-  <div class="col s12 m4 l3 pull-m8 pull-l9" id="mapcontrols">
+  <div class="col s12 m4 pull-m8" id="mapcontrols">
     <div>
       <div class="map-ctrl-container">
         <form action="#" id="region-select">
@@ -104,34 +129,45 @@
 
         <span id="hotspot-info"></span>
       </div>
+
       <div id="predict-controls">
+        <form>
+          
+        </form>
       </div>
+
       <div id="history-controls">
         <div class="section">
           <form action="#" id="history-options">
-            {{ hisctrl.csrf_token }}
-            {% macro year_month(form) -%}
-            <div class="row valign-wrapper">
-              <span class="inline col s4">{{ form.label.text }}</span>
-              <div class="input-field inline col s3">
-                {{ form.year() }}
-                {{ form.year.label }}
-                <!--<span class="helper-text">{{ form.year.label.text }}</span>-->
-              </div>
-              <div class="input-field inline col s5">
-                {{ form.month() }}
-                {{ form.month.label }}
-                <!--<span class="helper-text">{{ form.month.label.text }}</span>-->
-              </div>
-            </div>
-            {%- endmacro %}
-
-            <div class="row subopts-mode" id="hist-mode-year">
-              {{ year_month(hisctrl.start) }}
-              {{ year_month(hisctrl.end) }}
-
+            <div class="row">
               {{ hisctrl.data_type.label }}
               {{ hisctrl.data_type() }}
+            </div>
+            <div class="row">
+              {{ hisctrl.mode.label }}
+              <div id="{{ hisctrl.mode.id }}">
+              {% for choice in hisctrl.mode %}
+                {{ radio(choice) }}
+              {% endfor %} 
+              </div>
+              
+            </div>
+            
+            <div class="row">
+              <div class="subopts-mode" id="hist-mode-timerange">
+                {{ year_month(hisctrl.start) }}
+                {{ year_month(hisctrl.end) }}
+              </div>
+
+              <div class="subopts-mode" id="hist-mode-monthly">
+                {{ hisctrl.monthly.label }}
+                {{ hisctrl.monthly() }}
+              </div>
+
+              <div class="subopts-mode" id="hist-mode-yearly">
+                {{ hisctrl.yearly.label }}
+                {{ hisctrl.yearly() }}
+              </div>
             </div>
 
             <div class="row right-align">

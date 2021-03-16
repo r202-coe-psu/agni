@@ -85,19 +85,19 @@ def lookup_db(dates, bounds=None, measurement=None, database=None):
     start = min(dates)
     end = max(dates)
     measurement = measurement or 'hotspots'
-    #if (end - start).days == 0:
-    #    end += datetime.timedelta(days=1)
+    if (end - start).days == 0:
+        end += datetime.timedelta(days=1)
 
     influxql_str = """
         select * from "{measurement}"
-        where time >= '{start}' and time <= '{end}'
+        where time >= '{start}' and time < '{end}'
     """.format(start=start, end=end, measurement=measurement)
 
     if bounds is not None:
         # west,south,east,north
         influxql_str += """ 
-            and longitude >= {bbox[0]} and longitude < {bbox[2]}
-            and latitude >= {bbox[1]} and latitude < {bbox[3]}
+            and longitude >= {bbox[0]} and longitude <= {bbox[2]}
+            and latitude >= {bbox[1]} and latitude <= {bbox[3]}
         """.format(bbox=bounds)
 
     influxql_str += ';'
@@ -224,7 +224,7 @@ def get_prediction():
 @module.route('/history/<region>/<data_type>', methods=['POST'])
 def get_region_histogram(region, data_type=None):
     form = HistoryControlForm()
-    if form.validate_on_submit():
+    if form.is_submitted():
         start, end = (
             [int(n) for n in (form.start.year.data, form.start.month.data)],
             [int(n) for n in (form.end.year.data, form.end.month.data)],

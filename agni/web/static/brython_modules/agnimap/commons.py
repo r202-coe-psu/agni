@@ -1,4 +1,5 @@
 from browser import document, window
+import datetime
 
 mcss = window.M
 
@@ -18,6 +19,10 @@ def toast(text, icon=None, **toastopts):
     }
 
     return mcss.Toast.new(dict(opts, **toastopts))
+
+def formdata_to_dict(form):
+    form_data = window.FormData.new(form)
+    return dict(x for x in form_data.entries())
 
 def format_web(date):
     return date.strftime(WEB_FMT)
