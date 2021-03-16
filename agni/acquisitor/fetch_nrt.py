@@ -9,49 +9,51 @@ import pandas as pd
 
 from ..util import timefmt
 
-API_URL = 'https://nrt4.modaps.eosdis.nasa.gov/api/v2/content/archives/FIRMS/'
+API_URL = 'https://nrt4.modaps.eosdis.nasa.gov/api/v2/content/archives/FIRMS'
 __TOKEN = None
 
-class SatSrc:
+class SatSource:
     def __init__(self, name=None, url=None, filename=None, base_url=None):
         self.name = name
-        self.base_url = base_url
+        self.base_url = base_url or API_URL
         self.url = url
         self.filename = filename
-    
+
     def to_url(self, date):
         filedate = timefmt.format_julian(date)
-        filename_dated = "{}{}.txt".format(self.filename, filedate)
+        filename_dated = self.filename.format(date=filedate)
         return '/'.join([self.base_url, self.url, filename_dated])
 
-SRC_VIIRS = {
-    'name': 'viirs',
-    'url': 'viirs/SouthEast_Asia/',
-    'filename': 'VIIRS_I_SouthEast_Asia_VNP14IMGTDL_NRT_'
-}
-SRC_SUOMI = {
-    'name': 'suomi',
-    'url': 'suomi-npp-viirs-c2/SouthEast_Asia/',
-    'filename': 'SUOMI_VIIRS_C2_SouthEast_Asia_VNP14IMGTDL_NRT_',
-}
-SRC_MODIS = {
-    'name': 'modis',
-    'url' : 'c6/SouthEast_Asia/',
-    'filename': 'MODIS_C6_SouthEast_Asia_MCD14DL_NRT_'
-}
-SRC_NOAA = {
-    'name': 'noaa',
-    'url': 'noaa-20-viirs-c2/SouthEast_Asia/',
-    'filename': 'J1_VIIRS_C2_SouthEast_Asia_VJ114IMGTDL_NRT_'
-}
+SRC_VIIRS = SatSource(
+    name='viirs',
+    url='viirs/SouthEast_Asia',
+    filename='VIIRS_I_SouthEast_Asia_VNP14IMGTDL_NRT_{date}.txt'
+)
+SRC_SUOMI = SatSource(
+    name='suomi',
+    url='suomi-npp-viirs-c2/SouthEast_Asia',
+    filename='SUOMI_VIIRS_C2_SouthEast_Asia_VNP14IMGTDL_NRT_{date}.txt',
+)
+SRC_MODIS = SatSource(
+    name='modis',
+    url='c6/SouthEast_Asia',
+    filename='MODIS_C6_SouthEast_Asia_MCD14DL_NRT_{date}.txt'
+)
+SRC_NOAA = SatSource(
+    name='noaa',
+    url='noaa-20-viirs-c2/SouthEast_Asia',
+    filename='J1_VIIRS_C2_SouthEast_Asia_VJ114IMGTDL_NRT_{date}.txt'
+)
 
-MAKE_FLOATS = [
+_SRC_DEFAULT = SRC_SUOMI
+
+_MAKE_FLOATS = [
     'latitude', 'longitude',
     'scan', 'track',
     'bright_ti4', 'bright_ti5', 'bright_t32',
     'frp',
 ]
-SKIP = ['acq_date', 'acq_time']
+_SKIP = ['acq_date', 'acq_time']
 
 class NoTokenError(Exception):
     pass
@@ -119,9 +121,9 @@ def process_csv(raw_csv):
         acq_epoch_last = acq_epoch
 
         for k, v in line.items():
-            if k in SKIP:
+            if k in _SKIP:
                 continue
-            if k in MAKE_FLOATS:
+            if k in _MAKE_FLOATS:
                 out[k] = float(v)
             else:
                 out[k] = v
@@ -135,7 +137,7 @@ def process_csv(raw_csv):
 def process_csv_pandas(raw_csv, as_dict=False):
     csv_str_io = io.StringIO(raw_csv)
     hotspots = pd.read_csv(
-        csv_str_io, 
+        csv_str_io,
         parse_dates={
             'time': ['acq_date', 'acq_time']
         }
@@ -144,7 +146,7 @@ def process_csv_pandas(raw_csv, as_dict=False):
     # no data yet, but file header exist
     if len(hotspots) == 0:
         return [] if as_dict else hotspots
-    
+
     # dedupe time to usec offset
     time_dupe = hotspots.groupby('time').cumcount()
     hotspots['time'] = (hotspots['time']
@@ -159,7 +161,7 @@ def process_csv_pandas(raw_csv, as_dict=False):
 
     return hotspots
 
-def request_nrt(date=None, src=SRC_VIIRS, token=None):
+def request_nrt(date=None, src=None, token=None):
     """Fetch NRT Data from NASA (SEA Region) by date
 
     Args:
@@ -175,10 +177,11 @@ def request_nrt(date=None, src=SRC_VIIRS, token=None):
 
     if date is None:
         date = datetime.datetime.today()
+    if src is None:
+        src = _SRC_DEFAULT
 
-    url = make_url(src, date)
     r = requests.get(
-        url, 
+        src.to_url(date),
         headers={
             'Authorization': 'Bearer {}'.format(token)
         }
@@ -187,7 +190,8 @@ def request_nrt(date=None, src=SRC_VIIRS, token=None):
 
 def get_nrt_data(date=None, src=None, silent_404=True, token=None):
     if src is None:
-        src = SRC_VIIRS
+        src = _SRC_DEFAULT
+
     token = check_token(token)
 
     hotspots = []
