@@ -138,69 +138,10 @@
 
             <div class="row right-align">
               <a class="waves-effect waves-light btn" id="do-history">Show</a>
-            </div>
+            </div>  
           </form>
-        </div> 
-      </div>
-    </div>
-    <div class="container" id="history-controls">
-      <div class="section">
-        <form action="#" id="history-options">
-          <div class="row hide" id="hist-mode-picker">
-            <label for="history-mode">History Mode</label>
-            <p>
-              <label>
-                <input value="year" class="with-gap" name="histmode" type="radio" checked/>
-                <span>By year</span>
-              </label>
-            </p>
-            <p>
-              <label>
-                <input value="month" class="with-gap" name="histmode" type="radio" />
-                <span>By month</span>
-              </label>
-            </p>
-              <!-- <label>
-                <input value="range" class="with-gap" name="hist-mode" type="radio" />
-                <span>Time Range</span>
-              </label> -->
-          </div>
-
-          <div class="row subopts-mode" id="hist-mode-year">
-            <div class="input-field col s6">
-              <input type="number" id="target-year", min="2009" required="true">
-              <label for="lag-years">Year</label>
-            </div>
-            <div class="input-field col s6">
-              <input type="number" id="lag-years", min="0" class="validate">
-              <label for="lag-years">Offset</label>
-              <span class="helper-text" data-error="Invalid offset">
-              Offset from selected years
-              </span>
-            </div>
-          </div>
-
-          <div class="row subopts-mode" id="hist-mode-month">
-            Quark!
-          </div>
-
-          <div class="row right-align">
-            <a class="waves-effect waves-light btn" id="do-history">Show</a>
-          </div>
-        </form>
+        </div>
       </div> 
-      <!--
-        * region
-          - region picker
-        * mode
-          - annually (yyyy-01-01 to (yyyy+1)-01-01)
-            - year picker (start, end)
-          - year-monthly (yyyy-mm-01 to yyyy-(mm+1)-01)
-            - year picker (start, end)
-            - month picker (start, end)
-          - monthly across years (monthly across all year)
-            - month picker (end)
-      -->
     </div>
   </div>
   
