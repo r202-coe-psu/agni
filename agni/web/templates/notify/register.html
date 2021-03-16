@@ -1,0 +1,44 @@
+{% extends "/base/default-page.html" %}
+{% block content %}
+
+<div class="row card-panel">
+  <div class="col s12">
+    <h5>Register for hotspots notifications</h5>
+
+    <form action="{{ url_for('notify.register_form') }}" method="post">
+      {{ form.hidden_tag() }}
+      {{ form.csrf_token }}
+      <div class="row">
+        <div class="col s12 input-field">
+          {{ form.name() }}
+          {{ form.name.label(class_='active')}}
+        </div>
+      </div>
+      <div class="row">
+        <div class="col s12">
+          {{ form.regions.label(text='Select region(s) to receive notification') }}
+          {% for region in form.regions %}
+          <p>
+            <label>
+              {{ region(class_="filled-in") }}
+              <span>{{ region.label.text }}</span>
+            </label>
+          </p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col s12">
+          {% if not auth %}
+          {{ form.notify_authorize(class_='btn-large')}}
+          {% else %}
+          {{ form.confirm(class_='btn-large') }}
+          {{ form.notify_authorize(class_='btn-large btn-flat disabled')}}
+          {% endif %}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

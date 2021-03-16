@@ -9,6 +9,26 @@ services:
         # restart: always
         networks:
             - default
+        ports:
+            - "27017:27017"
+    influxdb:
+        image: influxdb:1.8-alpine
+        container_name: agni-influxdb
+        volumes:
+            - /etc/localtime:/etc/localtime:ro
+            - ../deployment/agni/influxdb:/var/lib/influxdb
+            #- ./influxdb-agni.conf:/etc/influxdb/influxdb.conf:ro
+        # restart: always
+        ports:
+            - "8087:8086"
+        networks:
+            - default
+        environment:
+            INFLUXDB_DB: "hotspots"
+            INFLUXDB_USER: "agnitest"
+            INFLUXDB_USER_PASSWORD: "agnitest"
+        #healthcheck:
+        #    test: wget -O - http://localhost:8086/health | grep -q 'ready for queries and writes'
     web:
         build: .
         image: agni-image
@@ -18,34 +38,41 @@ services:
             - ../deployment:/deployment
             - /etc/localtime:/etc/localtime:ro
         ports:
-            - 8080:9000
+            - "8080:9000"
         links:
             - mongodb
+            - influxdb
+        depends_on:
+            - influxdb
         networks:
             - default
-        # restart: always
+        restart: on-failure
         environment:
-            FLASK_ENV: production
-            SADHU_SETTINGS: /app/agni-development.cfg
+            AUTHLIB_INSECURE_TRANSPORT: "true"
+            FLASK_ENV: "development"
+            AGNI_SETTINGS: "/app/agni-development.cfg"
+            DEBUG: 1
         command: /app/scripts/agni-uwsgi.sh
     acquisitor:
         build: .
         image: agni-image
-        container_name: agni-checker
+        container_name: agni-acquisitor
         volumes:
             - .:/app
             - ../deployment:/deployment
             - /etc/localtime:/etc/localtime:ro
         links:
             - mongodb
+            - influxdb
+        depends_on:
+            - influxdb
         networks:
             - default
         # restart: always
         environment:
-            SADHU_SETTINGS: /app/agni-development.cfg
+            AGNI_SETTINGS: "/app/agni-development.cfg"
         command: agni-data-acquisitor
 
 networks:
     default:
         driver: bridge
-      

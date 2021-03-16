@@ -1,11 +1,7 @@
-
-from . import site
+from . import site, notify
 # from . import accounts
 
-modules = [site]
-
-
-
+modules = [site, notify]
 
 def get_subblueprints(views=[]):
     blueprints = []
@@ -15,8 +11,8 @@ def get_subblueprints(views=[]):
         if 'subviews' in dir(view):
             for module in get_subblueprints(view.subviews):
                 if view.module.url_prefix and module.url_prefix:
-                    module.url_prefix = view.module.url_prefix + \
-                            module.url_prefix
+                    module.url_prefix = view.module.url_prefix \
+                                        + module.url_prefix
                 blueprints.append(module)
 
     return blueprints

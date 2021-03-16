@@ -2,7 +2,8 @@
 # from . import oauth2
 
 # from .users import User
-# from .oauth2 import OAuth2Token
+from .oauth2 import OAuth2Token
+from .region import Region, UserRegionNotify
 
 __all__ = [
            # oauth2,
@@ -10,15 +11,14 @@ __all__ = [
 
 
 from flask_mongoengine import MongoEngine
-from flask_influxdb import InfluxDB
+from ..database import HotspotDatabase, create_influxdb
 
 db = MongoEngine()
-influxdb = InfluxDB()
+influxdb = HotspotDatabase()
 
 def init_db(app):
     db.init_app(app)
-    influxdb.init_app(app=app)
-
+    influxdb.init_db(app.config)
 
 def init_mongoengine(settings):
     import mongoengine as me
@@ -33,4 +33,3 @@ def init_mongoengine(settings):
                port=port,
                username=username,
                password=password)
-

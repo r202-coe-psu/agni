@@ -1,14 +1,13 @@
-from flask import Blueprint, render_template, current_app, url_for, request
-from flask import jsonify, send_from_directory
+from flask import (
+    Blueprint, render_template, current_app, url_for, request,
+    jsonify, send_from_directory
+)
 
 import pathlib
-import json
-import csv
 import datetime
 import calendar
 
 import geojson
-import requests
 import shapely
 import shapely.geometry
 
@@ -20,10 +19,12 @@ except ImportError:
 import pandas as pd
 
 from agni.acquisitor import fetch_nrt, filtering
-from agni.util import nrtconv
-from agni.models import influxdb
+from agni.util import nrtconv, ranger, timefmt
+from agni.models import create_influxdb, Region
 from agni.processing import firecluster, firepredictor, heatmap
-from agni.web import regions
+
+from .. import regions
+from ..forms.mapcontrols import HistoryControlForm
 
 module = Blueprint('site', __name__)
 
@@ -31,12 +32,10 @@ module = Blueprint('site', __name__)
 modis_hotspots = {}
 viirs_hotspots = {}
 
-INFLUX_UNAME = 'agnitest'
-INFLUX_PASSWD = 'agnitest'
-INFLUX_BUCKET = 'hotspots'
-INFLUX_URL = 'http://localhost:8086'
-
-TODAY = datetime.datetime.today()
+@module.record
+def on_bp_register(state):
+    app = state.app
+    fetch_nrt.set_token(app.config.get('FIRMS_API_TOKEN'))
 
 def get_viirs_hotspots(date):
     return fetch_nrt.get_nrt_data(date, src=fetch_nrt.SRC_VIIRS)
@@ -49,10 +48,9 @@ fetch_hotspots = {
     'modis': get_modis_hotspots
 }
 
-@module.route('/')
-def index():
-    roi_none = ['Thailand', 'all']
-    roi_list = [roi_none]
+ROI_NONE = ['Thailand', 'all']
+def roi_list_module():
+    roi_list = [ROI_NONE]
 
     region_list = [ 
         roi
@@ -68,8 +66,39 @@ def index():
         # get matching filename
         roi_def = pathlib.Path(roi_file).stem
         roi_list.append([roi_label, roi_def])
+    return roi_list
 
-    return render_template('/site/index.html', roi_list=roi_list)
+def roi_label_db():
+    roi_list = [ROI_NONE]
+    reglist = Region.objects
+    roi_list += [[c.human_name, c.name] for c in reglist]
+    return roi_list
+
+@module.route('/')
+def index():
+    roi_list = roi_label_db()
+
+    now = datetime.datetime.now()
+    history_controls = HistoryControlForm()
+    # set starting value
+    history_controls.start.process(
+        None, data=dict(
+            year=2000,
+            month=1
+        )
+    )
+    history_controls.end.process(
+        None, 
+        data=dict(
+            year=now.year,
+            month=now.month
+        )
+    )
+
+    return render_template('/site/index.html',
+        roi_list=roi_list,
+        hisctrl=history_controls,
+    )
 
 @module.route('/hotspots')
 def get_all_hotspots():
@@ -104,16 +133,17 @@ def lookup_external(dates, sat_src, bounds=None):
         sat_points += result
     return sat_points
 
-def lookup_db(dates, bounds=None):
+def lookup_db(dates, bounds=None, measurement=None, database=None):
     start = min(dates)
     end = max(dates)
+    measurement = measurement or 'hotspots'
     if (end - start).days == 0:
         end += datetime.timedelta(days=1)
 
     influxql_str = """
-        select * from "hotspots"
+        select * from "{measurement}"
         where time >= '{start}' and time < '{end}'
-    """.format(start=start, end=end)
+    """.format(start=start, end=end, measurement=measurement)
 
     if bounds is not None:
         # west,south,east,north
@@ -124,46 +154,28 @@ def lookup_db(dates, bounds=None):
 
     influxql_str += ';'
 
+    influxdb = create_influxdb(current_app.config)
     result = influxdb.query(influxql_str,
-                            epoch='u',
-                            database=INFLUX_BUCKET)
+                            epoch=None,
+                            database=database)
     sat_points = list(result.get_points())
     return sat_points
 
 def lookup_data(
         datestart, dateend=None, sat_src=None, livedays=None,
-        bounds=None):
+        bounds=None
+):
 
-    sat_src = 'viirs' if sat_src is None else sat_src
-    livedays = 60 if livedays is None else livedays
+    sat_src = sat_src or 'viirs'
+    livedays = livedays or 60
 
     # find requested date range for target
     if dateend is None:
-        datedelta = 1
-    else:
-        datedelta = (dateend - datestart).days
-    lookup_dates = [
-        datestart + datetime.timedelta(days=n)
-        for n in range(datedelta)
-    ]
-    #print(lookup_dates)
+        dateend = datestart
 
-    req_ext = []
-    req_db = []
-    for date in lookup_dates:
-        if TODAY - date <= datetime.timedelta(days=livedays):
-            req_ext.append(date)
-        else:
-            req_db.append(date)
-    #print([req_ext, req_db])
+    lookup_dates = ranger.date_range(datestart, dateend, normalize=True)
 
-    sat_points = []
-
-    if len(req_ext) > 0:
-        sat_points += lookup_external(req_ext, sat_src, bounds)
-    if len(req_db) > 0:
-        sat_points += lookup_db(req_db, bounds)
-    # fetch live first, then try db
+    sat_points = lookup_db(lookup_dates, bounds)
 
     return sat_points
 
@@ -207,6 +219,10 @@ def get_geojson_hotspots():
 
 @module.route('/regions/<roi>')
 def serve_roi_file(roi):
+    region = Region.objects(name=roi).first()
+    if region:
+        return jsonify(region)
+    # fallback
     return send_from_directory('regions', roi)
 
 @module.route('/clustered.geojson')
@@ -216,11 +232,11 @@ def get_clustered_hotspots():
     requested_date = queryargs.get('date', type=str)
     roi_name = queryargs.get('roi', type=str)
 
-    today = datetime.datetime.today()
+    today = datetime.datetime.now()
     datestart = today
     if requested_date is not None:
         try:
-            datestart = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
+            datestart = timefmt.parse_web(requested_date)
         except ValueError:
             datestart = today
     target_julian = datestart.strftime('%Y%j')
@@ -292,25 +308,24 @@ def get_prediction():
         current_data, prev_data, area, 375
     )
 
-
     result_geojson = firepredictor.firegrid_geojson(p_grid, p_edges)
 
     return jsonify(result_geojson)
 
-@module.route('/history/<region>/<int:year>')
-@module.route('/history/<region>/<int:year>/<int:month>')
-def region_histogram(region, year, month=None):
-    queryargs = request.args
-    lags = queryargs.get('lags', type=int, default=0)
-
-    if month is None:
-        start = datetime.datetime(year-lags, 1, 1)
-        end = datetime.datetime(year+1, 1, 1)
+@module.route('/history/<region>/<data_type>', methods=['POST'])
+def get_region_histogram(region, data_type=None):
+    form = HistoryControlForm()
+    if form.validate_on_submit():
+        start, end = (
+            [int(n) for n in (form.start.year.data, form.start.month.data)],
+            [int(n) for n in (form.end.year.data, form.end.month.data)],
+        )
+        date_start = datetime.datetime(*start, 1)
+        date_end = datetime.datetime(*end, 1)
+        date_start = timefmt.normalize(date_start)
+        date_end = timefmt.normalize(date_end)
     else:
-        start = datetime.datetime(year, month, 1)
-        last_day = calendar.monthrange(year, month)[1]
-        end = (datetime.datetime(year, month, last_day)
-               + datetime.timedelta(days=1))
+        return "Malformed input", 400
 
     #print([start, end])
     # get region bbox for faster processing, no db yet
@@ -321,11 +336,39 @@ def region_histogram(region, year, month=None):
     ).buffer(0)
     roi_bbox = roi_shape.bounds
 
-    data = lookup_data(datestart=start, dateend=end, bounds=roi_bbox)
-    hmap = heatmap.NRTHeatmap(step=375, bounds=roi_bbox)
-    hmap.fit(data, 'longitude', 'latitude')
+    data = lookup_data(datestart=date_start, dateend=date_end, bounds=roi_bbox)
+    if len(data) == 0:
+        return 'No Data', 204
 
-    hmap_gj = hmap.repr_geojson(keep_zero=False)
-    hmap_gj['info'].update(dict(region=region))
+    if data_type == 'count':
+        weight = None
+        repr_mode = 'count'
+
+    else:
+        weight = data_type
+        repr_mode = 'average'
+
+    NRT_DATA_UNITS = {
+        'frp': 'MW',
+        'bright_ti4': 'K',
+        'bright_ti5': 'K',
+    }
+
+    try:
+        val_unit = NRT_DATA_UNITS[data_type]
+    except KeyError:
+        val_unit = ''
+
+    hmap = heatmap.NRTHeatmap(step=375, bounds=roi_bbox)
+    hmap.fit(
+        data, 'longitude', 'latitude',
+        wkey=weight
+    )
+
+    hmap_gj = hmap.repr_geojson(keep_zero=False, mode=repr_mode)
+    hmap_gj['info'].update({
+        'region': region,
+        'value_unit': val_unit
+    })
 
     return jsonify(hmap_gj)

@@ -1,5 +1,5 @@
 from browser import document, window, ajax, bind, timer
-import javascript
+import javascript as js
 import datetime
 
 leaflet = window.L
@@ -7,17 +7,17 @@ turf = window.turf
 jq = window.jQuery
 mcss = window.M
 
-_jsdate_today = javascript.Date.new()
+_js_now = js.Date.new
 
 BASE_MARKER_OPTS = {
     "stroke": False,
     "radius": 5,
     "color": 'orange',
-    "fillOpacity": 0.2
+    "fillOpacity": 0.5
 }
 
 DBSCAN_MARKER_OPTS = {
-    "core": dict(BASE_MARKER_OPTS, color="red", fillOpacity=0.5),
+    "core": dict(BASE_MARKER_OPTS, color="red", fillOpacity=0.75),
     "edge": dict(BASE_MARKER_OPTS, color="red"),
     "noise": dict(BASE_MARKER_OPTS, color="orange"),
 }
@@ -65,16 +65,18 @@ ZONE_SELECT_STYLE = {
 # set up materialize css stuff
 DP_OPTS = {
     "setDefaultDate": True,
-    "defaultDate": _jsdate_today,
-    "maxDate": _jsdate_today,
+    "defaultDate": _js_now(),
+    "maxDate": _js_now(),
     "format": "yyyy-mm-dd"
 }
+
+GOOGLE_MAPS_API_URL = 'https://www.google.com/maps/search/?api=1'
 
 # materialize css init
 dp_elems = document.querySelectorAll('.datepicker')
 dp_instances = mcss.Datepicker.init(dp_elems, DP_OPTS)
 
-sel_elems = document.querySelectorAll('.select')
+sel_elems = document.querySelectorAll('select')
 sel_instances = mcss.FormSelect.init(sel_elems)
 
 tab_elems = document.querySelectorAll('.tabs')
@@ -186,14 +188,15 @@ def date_from_offset(offset, maxdelta=60):
 
     return today-delta
 
-def draw_roi_jq(resp, status, jqxhr):
-    leaflet.geoJSON(resp,{"style":ROI_STYLE}).addTo(roi_layer)
-
 def draw_roi(roi_name, clear=True):
+    def draw_roi_jq(resp, status, jqxhr):
+        g = leaflet.geoJSON(resp, {"style":ROI_STYLE}).addTo(roi_layer)
+        lmap.fitBounds(g.getBounds())
+
     if clear:
         roi_layer.clearLayers()
     if roi_name != 'all':
-        jq.ajax('/regions/{}.geojson'.format(roi_name), {
+        jq.ajax('/regions/{}'.format(roi_name), {
             "dataType": "json",
             "success": draw_roi_jq
         })
@@ -241,8 +244,9 @@ def switch_subopts(mode):
 @bind('#history-options', 'change')
 def history_options_changed(ev):
     if ev.target.attrs.get('name', None) == 'histmode':
-        value = document['history-options'].histmode.value
-        switch_subopts(mode=value)
+        pass
+        #value = document['history-options'].histmode.value
+        #switch_subopts(mode=value)
 
 predict_zone = 'zone-roi'
 zone_layer = leaflet.LayerGroup.new()
@@ -282,8 +286,6 @@ def on_drag_rect(ev):
     global zone_bounds
     bounds = ev.layer.getBounds().toBBoxString()
     zone_bounds = bounds
-
-from urllib.parse import urlencode
 
 @bind('#do-predict', 'click')
 def request_predict(ev):
@@ -336,63 +338,186 @@ def request_predict(ev):
         "error": req_error
     })
 
+def wtforms_csrf_inject(csrf_token):
+    def add_csrf(xhr, settings):
+        re = js.RegExp.new('^(GET|HEAD|OPTIONS|TRACE)$', 'i')
+        if not (re.test(settings.type) or js.this().crossDomain):
+            xhr.setRequestHeader("X-CSRFToken", csrf_token)
+
+    jq.ajaxSetup({
+        'beforeSend': add_csrf
+    })
+
+def props_format_html(props, unit=''):
+    if not isinstance(props, dict):
+        props = props.to_dict()
+
+    features_str = []
+    for k, v in props.items():
+        if unit != '' and k == 'value':
+            kv_str = "<b>{}</b>: {} {}".format(k, v, unit)
+        else:
+            kv_str = "<b>{}</b>: {}".format(k, v)
+        features_str.append(kv_str)
+
+    feature_html = '<br />'.join(features_str)
+    return feature_html
+
+# choropleth
+# low to high
+chrp = None
+CHOROPLETH_BINS = ['#ffffb2','#fecc5c','#fd8d3c','#e31a1c']
+
+def info_onadd(map_):
+    this = js.this()
+    map_.info_ctrl = this
+    this._div = leaflet.DomUtil.create('div', 'info')
+    this.update()
+    return this._div
+
+def info_onremove(map_):
+    map_.info_ctrl = None
+
+def info_update(props=None):
+    this = js.this()
+    if props is not None:
+        this._div.innerHTML = props_format_html(props)
+    else:
+        this._div.innerHTML = 'Hover over heatmap cells for info'
+
+Info_ctrl = leaflet.Control.extend({
+    'options': {
+        'position': 'bottomright'
+    },
+    'onAdd': info_onadd,
+    'onRemove': info_onremove,
+    'update': info_update
+})
+info_ctrl = Info_ctrl.new()
+info_ctrl.addTo(lmap)
+
+# /choropleth
+
+def value_map(value, in_bounds, out_bounds):
+    in_min, in_max = in_bounds
+    out_min, out_max = out_bounds
+    return (value-in_min) * (out_max-out_min) / (in_max-in_min) + out_min
+
 @bind('#do-history', 'click')
 def show_history(ev):
     if roi_name == 'all':
         toast(text="Must pick a region", icon="error")
         return
 
-    year = int(document['target-year'].value)
-    lags_input = document['lag-years']
-    if 'invalid' in lags_input.class_name:
-        toast(text="Offset must be higher than zero.", icon='error')
-        return
-    try:
-        lags = int(lags_input.value)
-    except ValueError:
-        lags = 0
+    form_serialize = jq('#history-options').serialize()
+    form_data = window.FormData.new(document['history-options'])
+    form_dict = dict(x for x in form_data.entries())
 
-    def histogram_cell_style(feature, max_count, lower=None, upper=None):
-        count = feature.properties.count
+    data_type = form_dict['data_type']
+    csrf_token = form_dict['csrf_token']
+
+    def generate_colors_func(colors, lower, upper):
+        color_class = len(colors)
+
+        def get_color(value):
+            cindex = value_map(value, (lower, upper), (0, color_class))
+            cindex = max(0, min(color_class-1, cindex))
+            return colors[cindex]
+
+        return get_color
+
+    def highlight_feature(e):
+        layer = e.target
+
+        layer.setStyle({
+            "color": '#666',
+            "fillOpacity": 0.75,
+            "stroke": True,
+            "weight": 1
+        })
+        info_ctrl.update(layer.feature.properties.to_dict())
+
+        if not (leaflet.Browser.ie
+                or leaflet.Browser.opera
+                or leaflet.Browser.edge):
+            layer.bringToFront()
+
+    def highlight_reset(e):
+        global chrp
+        chrp.resetStyle(e.target)
+        info_ctrl.update()
+
+    def histogram_cell_style(feature, input_bounds, output_bounds):
+        value = feature.properties.value
+
         base_cell = CELLSTYLE['FIRE']
-        lower = lower or 0.1
-        upper = upper or 0.5
 
-        opacity_range = upper - lower
-        base_opacity = lower
+        colorfunc = generate_colors_func(CHOROPLETH_BINS, *input_bounds)
+        cell_color = colorfunc(value)
 
         style = dict(
             base_cell,
-            fillOpacity=(base_opacity
-                         + (opacity_range * count / max_count))
+            #fillColor=cell_color,
+            fillOpacity=value_map(value, input_bounds, output_bounds)
+            #fillOpacity=0.5
         )
-
         return style
+
+    def histogram_cell_features(feature, layer, unit=''):
+        props = feature.properties.to_dict()
+        info_ctrl.update(props)
+
+        props_html = props_format_html(props, unit)
+        layer.bindPopup(props_html)
+
+        layer.on({
+            "mouseover": highlight_feature,
+            "mouseout": highlight_reset
+        })
 
     def req_success(resp, status, jqxhr):
         if jqxhr.status == 200:
-            max_count = resp.info.max_count
+            global chrp
+            min_val = resp.info.min_value
+            max_val = resp.info.max_value
+            unit = resp.info.value_unit
+            bounds = [min_val, max_val]
+            print(bounds, max_val-min_val)
 
             history_layer.clearLayers()
-            leaflet.geoJSON(
-                resp, {'style': lambda s: histogram_cell_style(s, max_count)}
-            ).addTo(history_layer)
+            chrp = leaflet.geoJSON(
+                resp, 
+                {
+                    'style': lambda s: histogram_cell_style(
+                        s, bounds, [0.2, 0.5]
+                    ),
+                    'onEachFeature': lambda f, l: histogram_cell_features(
+                        f, l, unit
+                    )
+                }
+            )
+            chrp.addTo(history_layer)
             history_layer.addTo(lmap)
 
     def req_error(jqxhr, jq_error, text_error):
         toast("History: Error '{}': {}".format(jq_error, text_error),
               icon='error')
 
+    wtforms_csrf_inject(csrf_token)
     jq.ajax(
-        "/history/{region}/{year}".format(region=roi_name, year=year),
+        "/history/{region}/{data_type}".format(
+            region=roi_name, data_type=data_type
+        ),
         {
+            'type': 'POST',
             'dataType': 'json',
-            'data': dict(lags=lags) if lags > 0 else {},
+            'data': form_serialize,
             'success': req_success,
             'error': req_error
         }
     )
 
+    ev.preventDefault()
 
 lmap.on('editable:drawing:commit', on_draw_rect)
 lmap.on('editable:drag', on_drag_rect)
@@ -445,10 +570,25 @@ def cluster_data(resp, status, jqxhr):
 
     def turf_features(feature, layer):
         features_dict = feature.properties.to_dict()
+
+        # format time for display
+        utc_time = js.Date.new(features_dict['time'])
+        features_dict['time'] = utc_time.toLocaleString()
         features_str = [
             "<b>{}</b>: {}".format(k, v)
             for k, v in features_dict.items()
         ]
+
+        coords = layer.getLatLng() # leaflet's LatLon object
+        coords_link = '&'.join([
+            GOOGLE_MAPS_API_URL,
+            'query={lat},{lon}'
+        ]).format(lat=coords.lat, lon=coords.lng)
+        coords_html = (
+            '<a href="{link}" target="_blank">Open in Google maps</a>'
+        ).format(link=coords_link)
+        features_str.append(coords_html)
+
         layer.bindPopup('<br />'.join(features_str))
 
     def turf_filter(feature):
@@ -477,25 +617,25 @@ def cluster_data(resp, status, jqxhr):
 
     enable_input(True)
 
-def query_error(jqxhr, errortype, text):
-    #document['hotspot-info'].text = "E{}: {}".format(jqxhr.status, text)
-    toast("Error {}: {}".format(jqxhr.status, text))
-    enable_input(True)
-
-def query_succes(resp, status, jqxhr):
-    if jqxhr.status == 200:
-        document['hotspot-info'].text = ''
-        cluster_data(resp, status, jqxhr)
-    elif jqxhr.status == 204:
-        #document['hotspot-info'].text = 'No data'
-        toast('No data', icon='info')
-        enable_input(True)
-
 def query_ajax_cluster(target=None):
     """ send request to server using ajax
         Args: target (string): 
             date to query, formatted to '%Y-%m-%d'
     """
+    def query_error(jqxhr, errortype, text):
+        #document['hotspot-info'].text = "E{}: {}".format(jqxhr.status, text)
+        toast("Error {}: {}".format(jqxhr.status, text))
+        enable_input(True)
+
+    def query_succes(resp, status, jqxhr):
+        if jqxhr.status == 200:
+            document['hotspot-info'].text = ''
+            cluster_data(resp, status, jqxhr)
+        elif jqxhr.status == 204:
+            #document['hotspot-info'].text = 'No data'
+            toast('No data', icon='info')
+            enable_input(True)
+
     data = {}
     if target is not None:
         data = {"date": target}
@@ -510,13 +650,6 @@ def query_ajax_cluster(target=None):
     })
 
 # /turf test
-
-# RoI
-
-#@bind('#hotspot-roi', 'change')
-#def enable_roi(ev):
-#    global using_roi
-#    using_roi = document['hotspot-roi'].checked
 
 @bind('#hotspot-query', 'click')
 @bind('#hotspot-date', 'change')
@@ -547,81 +680,8 @@ def date_query_slider(ev):
     offset = 60 - int(offset)
     delta = datetime.timedelta(days=offset)
     target = datetime.datetime.today() - delta
-    target_str = target.strftime('%Y-%m-%d')
 
     change_or_query(target)
-
-def marker_popup(e):
-    """ generate contents for clicked marker """
-    e_dict = e.to_dict()
-    coords = e.getLatLng().to_dict()
-    feature_str = [ "<b>{}</b>: {}".format(k, v)
-        for k, v in e.feature.items() 
-    ]
-    return '<br />'.join(feature_str)
-
-def draw_one_marker(spot, marker_opts):
-    # make a marker
-    coords = (spot['latitude'], spot['longitude'])
-
-    m = leaflet.circleMarker(coords, marker_opts)
-
-    # embed features into marker
-    feature = spot.to_dict()
-    del feature['latitude']
-    del feature['longitude']
-    del feature['acq_date']
-    del feature['acq_time']
-    m.feature = feature
-
-    # add popup before return marker instance
-    m.bindPopup(marker_popup)
-    return m
-
-def draw_all(data, date_jul):
-    if date_jul not in marker_dated:
-        mkl = leaflet.LayerGroup.new()
-        marker_dated[date_jul] = mkl
-    else:
-        mkl = marker_dated[date_jul]
-
-    for spot in data:
-        m = draw_one_marker(spot)
-        m.addTo(mkl)
-
-    mkl.addTo(marker_layer)
-    marker_layer.addTo(lmap)
-    document['hotspot-info'].text = ''
-
-def draw_chunks(data, date_jul,marker_opts,marker_layer,mkl,marker_dated):
-    todo = data.copy()
-    chunksize = 200
-    chunkdelay = 100
-
-    mkl = leaflet.LayerGroup.new()
-
-    def dotask():
-        items = todo[0:chunksize]
-
-        for spot in items:
-            m = draw_one_marker(spot)
-            m.addTo(mkl)
-
-        del todo[0:chunksize]
-
-        if len(todo) > 0:
-            timer.set_timeout(dotask, chunkdelay)
-            load_percent = 1 - (len(todo) / len(data))
-            load_str = "{:.1%}".format(load_percent)
-            #document['progress-bar-v'].style.width = load_str
-            document['hotspot-info'].text = load_str
-        else:
-            enable_input(True)
-            document['hotspot-info'].text = ''
-
-    timer.set_timeout(dotask, chunkdelay)
-    mkl.addTo(marker_layer)
-    marker_layer.addTo(lmap)
 
 def hotspot_get_jq(resp_data, text_status, jqxhr):
     # resp_data.data is already json
@@ -629,9 +689,6 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
         viirs_layer.clearLayers()
         modis_layer.clearLayers()
         document['hotspot-info'].text = 'Loading...'
-
-        data = resp_data
-        date_jul = resp_data['date_jul']
     else:
         #document['hotspot-info'].text = 'Error retrieving hotspots'
         toast('Error retrieving hotspots', icon='error')
@@ -640,31 +697,22 @@ def hotspot_get_jq(resp_data, text_status, jqxhr):
     global fetch_in_progress
     fetch_in_progress = False
 
-# jQuery is somehow way faster
-# get point for today
-def page_load_init(ev):
+
+def map_load_init(ev):
     query_ajax_cluster()
-    value = document['history-options'].histmode.value
-    switch_subopts(mode=value)
+    #value = document['history-options'].histmode.value
+    #switch_subopts(mode=value)
 
-
-
-lmap.on('load', page_load_init)
+lmap.on('load', map_load_init)
 
 base = leaflet.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
     "maxZoom": 18,
     "attribution": ( 
         '&copy; '
-        '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        ' contributors'
+        '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
+        'contributors'
     )
 })
-
-#jq.ajax('/regions/kuankreng.geojson', {
-#    "dataType": "json",
-#    "success": draw_roi
-#    }
-#)
 
 leaflet.control.layers(
     {
@@ -684,5 +732,3 @@ leaflet.control.scale({"imperial": False}).addTo(lmap)
 
 # for browser console debug only
 window.lmap = lmap
-window.marker_layer = marker_layer
-window.marker_dated = marker_dated

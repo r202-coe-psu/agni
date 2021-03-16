@@ -1,44 +1,36 @@
-import datetime
-import json
-import copy
+import geojson
 
 PRUNE_PROPS = ['latitude', 'longitude', 'acq_date', 'acq_time']
 
-def make_geojson_point(nrt):
+def point_geojson(nrt):
     lat = nrt['latitude']
     lon = nrt['longitude']
 
     props = {k: v for k, v in nrt.items() if k not in PRUNE_PROPS}
-    #props['acq_time_us'] = nrt['acq_time']
 
-    ret = {
-        'type': 'Feature',
-        'properties': props,
-        'geometry': {
-            'type': 'Point',
-            'coordinates': [lon, lat]
-        }
-    }
+    point = geojson.Point(coordinates=(lon, lat))
+    ret = geojson.Feature(geometry=point, properties=props)
     return ret
-
 
 def to_geojson(nrt_points):
     points = list(
-        make_geojson_point(p) 
+        point_geojson(p)
         for p in nrt_points
     )
 
-    ret = {
-        'type': 'FeatureCollection',
-        'features': points
-    }
+    ret = geojson.FeatureCollection(points)
     return ret
 
-def to_influx_json(nrt_point, measure, timekey, tags=None, skip=None):
+def to_influx_json(
+        point, measure, timekey, 
+        tags=None, skip=None, auto_tags=False,
+        precision=None
+):
+
     """ reshape NRT data to json compatible for InfluxDB usage
 
         Args:
-            nrt (dict):
+            point (dict):
                 NRT data point as dict
             measure (str):
                 InfluxDB measure name
@@ -50,6 +42,9 @@ def to_influx_json(nrt_point, measure, timekey, tags=None, skip=None):
                 instead of fields
             skip (list of str):
                 list of keys for values to skip processing
+            skip_time (bool):
+                skip including time column in timekey in data points
+                timekey column is always skipped unless this option is false
 
         Return:
             point (dict):
@@ -59,33 +54,52 @@ def to_influx_json(nrt_point, measure, timekey, tags=None, skip=None):
     if tags is None:
         tags = []
     if skip is None:
-        skip = []
+        skip = [timekey]
 
     influx_point = {
-        'time': 0,
+        'time': None,
         'tags': {},
         'fields': {},
         'measurement': measure,
     }
 
-    for k, v in nrt_point.items():
+    if auto_tags:
+        for k, v in point.items():
+            if k in skip or k == timekey:
+                continue
+
+            try:
+                _ = float(v)
+            except ValueError:
+                k not in tags and tags.append(k)
+
+    for k, v in point.items():
         if k in skip or k == timekey:
             continue
 
         if k in tags:
             influx_point['tags'][k] = str(v)
         else:
-            try:
-                influx_point['fields'][k] = float(v)
-            except ValueError:
-                influx_point['tags'][k] = str(v)
+            influx_point['fields'][k] = float(v)
 
-    influx_point['time'] = int(nrt_point['acq_time'])
+    if precision is None or precision.casefold() == 'rfc3339':
+        influx_point['time'] = point[timekey].isoformat()
+    elif precision in ['h','m','s','ms','u','ns']:
+        influx_point['time'] = int(point[timekey])
+    else:
+        raise TypeError('Cannot parse time data')
 
     return influx_point
 
-def to_influx_line(nrt, measure, timekey, tags=None, skip=None):
-    point = to_influx_json(nrt, measure, timekey, tags, skip)
+def to_influx_line(
+        point, measure, timekey, 
+        tags=None, skip=None, auto_tags=False,
+        precision=None
+):
+
+    point = to_influx_json(
+        point, measure, timekey, tags, skip, auto_tags, precision
+    )
 
     # formatting them into a line protocol format
     fields_out = (
