@@ -2,6 +2,8 @@ from browser import document, window, ajax, bind, timer
 import javascript as js
 import datetime
 
+from agnimap.commons import toast
+
 leaflet = window.L
 turf = window.turf
 jq = window.jQuery
@@ -116,35 +118,6 @@ fetch_satellite = {
     "modis" : True,
     "viirs" : True
 }
-
-def toast(text, icon=None, **toastopts):
-    html_icon = ''
-    if icon is not None:
-        html_icon = '<i class="material-icons">{icon}</i>'.format(icon=icon)
-
-    html_text = '{}<span>{}</span>'.format(html_icon, text)
-    opts = {
-        'html': html_text,
-        'displayLength': 3000,
-        'classes': 'toast-text'
-    }
-
-    return mcss.Toast.new(dict(opts, **toastopts))
-
-def query_ajax(target=None):
-    """ send request to server using ajaxmarker_layer
-        Args: target (string): 
-            date to query, formatted to '%Y-%m-%d'
-    """
-    data = {}
-    if target is not None:
-        data = { "date" : target }
-
-    jq.ajax('/hotspots', {
-        "dataType": "json",
-        "data": data,
-        "success": hotspot_get_jq
-    })
 
 def change_or_query(target=None):
     """ check if target date is queried before query for new entry

@@ -109,12 +109,12 @@ def lookup_db(dates, bounds=None, measurement=None, database=None):
     start = min(dates)
     end = max(dates)
     measurement = measurement or 'hotspots'
-    if (end - start).days == 0:
-        end += datetime.timedelta(days=1)
+    #if (end - start).days == 0:
+    #    end += datetime.timedelta(days=1)
 
     influxql_str = """
         select * from "{measurement}"
-        where time >= '{start}' and time < '{end}'
+        where time >= '{start}' and time <= '{end}'
     """.format(start=start, end=end, measurement=measurement)
 
     if bounds is not None:
