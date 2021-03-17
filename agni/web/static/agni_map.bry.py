@@ -67,7 +67,8 @@ DP_OPTS = {
     "setDefaultDate": True,
     "defaultDate": _js_now(),
     "maxDate": _js_now(),
-    "format": "yyyy-mm-dd"
+    "format": "yyyy-mm-dd",
+    "container": document['main-row']
 }
 
 GOOGLE_MAPS_API_URL = 'https://www.google.com/maps/search/?api=1'

@@ -29,7 +29,6 @@ head {
 
 #mapdisplay {
 	height: 100%;
-	z-index: 0;
 }
 
 @media screen and (max-width: 600px){
