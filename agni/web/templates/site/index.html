@@ -16,8 +16,8 @@
 {% block additional_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='agni_map.css') }}">
 
-<link rel="stylesheet" href="https://unpkg.com/simplebar@latest/dist/simplebar.css"/>
-<script src="https://unpkg.com/simplebar@latest/dist/simplebar.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='node_modules/simplebar/dist/simplebar.css') }}">
+<script src="{{ url_for('static', filename='node_modules/simplebar/dist/simplebar.min.js') }}"></script>
 {% endblock additional_head %}
 
 {# barecontent block sits outside of the materialize css container #}
