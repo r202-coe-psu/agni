@@ -9,7 +9,8 @@ import pandas as pd
 
 from scipy import ndimage
 
-from agni.util import nprange
+from ..util import ranger
+from ..util import geojsontools as gjtool
 
 # perfome some project from latlon -> UTM 47N so I can do things in meters
 # force use of x, y (lon, lat) (east, north) order
@@ -111,8 +112,8 @@ def generate_firegrid(nrt_points, area, step, utm=False,
     bl = (area_x[0], area_y[0])
     tr = (area_x[1], area_y[1])
 
-    lons_u = nprange.closed_range(bl[0], tr[0], step)
-    lats_u = nprange.closed_range(bl[1], tr[1], step)
+    lons_u = ranger.closed_range(bl[0], tr[0], step)
+    lats_u = ranger.closed_range(bl[1], tr[1], step)
 
     if xkey is None:
         xkey = 'longitude'
@@ -200,18 +201,14 @@ def firegrid_geojson(firegrid, edges, ignore_trees=False):
             data = firegrid[y, x]
             if data == G_TREE and ignore_trees:
                 continue
-            tl = (elons[x], elats[y])
-            tr = (elons[x+1], elats[y])
-            bl = (elons[x], elats[y+1])
-            br = (elons[x+1], elats[y+1])
+            elons = edges[0]
+            elats = edges[1]
 
-            # draw rectangle
-            poly = [tl, bl, br, tr, tl] # manually draw rect, ccw per spec
-            rect = geojson.Polygon([poly])
-            lonlat_rect = geojson.utils.map_tuples(
-                lambda c: LONLAT_TF.transform(*c), 
-                rect
-            )
+            west, east = elons[x:x+2]
+            south, north = elats[y:y+2]
+
+            rect = gjtool.rect(west, south, east, north)
+            lonlat_rect = gjtool.reproject(rect, LONLAT_TF)
 
             feature_rect = geojson.Feature(
                 geometry=lonlat_rect, properties={'celltype': G_STATE[data]},

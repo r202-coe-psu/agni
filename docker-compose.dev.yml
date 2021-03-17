@@ -12,12 +12,12 @@ services:
         ports:
             - "27017:27017"
     influxdb:
-        image: influxdb
+        image: influxdb:1.8-alpine
         container_name: agni-influxdb
         volumes:
             - /etc/localtime:/etc/localtime:ro
             - ../deployment/agni/influxdb:/var/lib/influxdb
-            - ./agni-influxdb-config.conf:/etc/influxdb/influxdb.conf:ro
+            #- ./influxdb-agni.conf:/etc/influxdb/influxdb.conf:ro
         # restart: always
         ports:
             - "8087:8086"
@@ -27,10 +27,37 @@ services:
             INFLUXDB_DB: "hotspots"
             INFLUXDB_USER: "agnitest"
             INFLUXDB_USER_PASSWORD: "agnitest"
+        #healthcheck:
+        #    test: wget -O - http://localhost:8086/health | grep -q 'ready for queries and writes'
     web:
         build: .
         image: agni-image
         container_name: agni-web
+        volumes:
+            - /etc/localtime:/etc/localtime:ro
+            - ../deployment/agni/influxdb:/var/lib/influxdb
+            - ./agni-influxdb-config.conf:/etc/influxdb/influxdb.conf:ro
+        # restart: always
+        ports:
+            - "8080:9000"
+        links:
+            - mongodb
+            - influxdb
+        depends_on:
+            - influxdb
+        networks:
+            - default
+        restart: on-failure
+        environment:
+            AUTHLIB_INSECURE_TRANSPORT: "true"
+            FLASK_ENV: "development"
+            AGNI_SETTINGS: "/app/agni-development.cfg"
+            DEBUG: 1
+        command: /app/scripts/agni-uwsgi.sh
+    acquisitor:
+        build: .
+        image: agni-image
+        container_name: agni-acquisitor
         volumes:
             - .:/app
             - ../deployment:/deployment
@@ -40,32 +67,14 @@ services:
         links:
             - mongodb
             - influxdb
+        depends_on:
+            - influxdb
         networks:
             - default
         # restart: always
         environment:
-            AUTHLIB_INSECURE_TRANSPORT: "true"
-            FLASK_ENV: "development"
             AGNI_SETTINGS: "/app/agni-development.cfg"
-            DEBUG: 1
-        command: /app/scripts/agni-uwsgi.sh
-    acquisitor:
-       build: .
-       image: agni-image
-       container_name: agni-acquisitor
-       volumes:
-           - .:/app
-           - ../deployment:/deployment
-           - /etc/localtime:/etc/localtime:ro
-       links:
-           - mongodb
-           - influxdb
-       networks:
-           - default
-       # restart: always
-       environment:
-           AGNI_SETTINGS: /app/agni-development.cfg
-       command: agni-data-acquisitor
+        command: agni-data-acquisitor
 
 networks:
     default:

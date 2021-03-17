@@ -8,248 +8,156 @@
 <script src="{{ url_for('static', filename='node_modules/leaflet.path.drag/src/Path.Drag.js') }}"></script>
 
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='node_modules/materialize-css/extras/noUiSlider/nouislider.css') }}">
-<script src="{{ url_for('static', filename='node_modules/materialize-css/extras/noUiSlider/nouislider.js') }}"></script>
 
 <script src="{{ url_for('static', filename='node_modules/@turf/turf/turf.min.js') }}"></script>
 <script src="{{ url_for('static', filename='node_modules/@turf/turf/turf.js') }}"></script>
 {% endblock default_head %}
 
 {% block additional_head %}
-<style>
+<link rel="stylesheet" href="{{ url_for('static', filename='agni_map.css') }}">
 
-.container {
-  margin: 0 auto;
-  max-width: 100vw;
-  width: 98% !important;
-}
-/*
-@media only screen and (min-width: 601px) {
-    .container {
-    width: 90%;
-    }
-}
-@media only screen and (min-width: 993px) {
-    .container {
-    width: 85%;
-    }
-}
-*/
-
-#mapdisplay {
-    height: 80vh;
-}
-.fullwidth-btn {
-    width: 100%;
-}
-.toast-text i {
-  margin-right: 1ex;
-}
-/*
-.switch {
-    padding:5px 5px;
-    margin: 10px;
-}
-*/
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='node_modules/simplebar/dist/simplebar.css') }}">
+<script src="{{ url_for('static', filename='node_modules/simplebar/dist/simplebar.min.js') }}"></script>
 {% endblock additional_head %}
 
 {# barecontent block sits outside of the materialize css container #}
-{% block content %}
+{% block barecontent %}
 <div class="row" id="main-row">
   <!-- map -->
-  <div class="col s12 l9 push-l3" id="hotspot-display">
-    <div id="mapdisplay"></div>
-  </div>
+  <div class="col s12 m8 l9 push-m4 push-l3" id="mapdisplay"></div>
   <!-- map controls -->
-  <div class="col s12 l3 pull-l9 content">
-    <div class="container">
-      <form action="#" id="region-select">
-        <div class="row input-field">
-          <select id="region-list" class="select">
-            {% for label, roi in roi_list %}
-            {% if loop.first %}
-            <option value="{{roi}}" selected="selected">{{label}}</option>"
-            {% else %}
-            <option value="{{roi}}">{{label}}</option>"
-            {% endif %}
-            {% endfor %}
-          </select>
-          <label>Region</label>
-        </div>
-      </form>
-    </div>
-
-    <div class="divider"></div>
-
-    <ul class="tabs tabs-fixed-width">
-      <li class="tab col"><a class="active" href="#hotspot-controls">Predict</a></li>
-      <li class="tab col"><a href="#history-controls">History</a></li>
-    </ul>
-
-    <div class="container" id="hotspot-controls">
-      <div class="section">
-        <form action="#" id="map-options">
+  <div class="col s12 m4 l3 pull-m8 pull-l9" id="mapcontrols" data-simplebar>
+    <div class="container map-controls">
+      <div>
+        <form action="#" id="region-select">
           <div class="row input-field">
-            <input type="text" class="datepicker" id="hotspot-date" />
-            <label class="active" for="hotspot-date">Hotspot Date</label>
-          </div>
-          <div class="row">
-            <p class="range-field">
-              <input type="range" min="0" max="60" value="60" id="hotspot-date-offset" />
-            </p>
-          </div>
-        </form>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="section">
-        <form action="#" id="predict-options">
-          <div class="row" id="zone-picker">
-            <label for="zone-picker">Prediction Area<label>
-            <!--
-            <p>
-              <label>
-                <input id="zone-none" class="with-gap" name="predict-region" type="radio" checked/>
-                <span>None</span>
-              </label>
-            </p>
-            -->
-            <p>
-              <label>
-                <input id="zone-roi" class="with-gap" name="predict-region" type="radio" checked/>
-                <span>Current Region</span>
-              </label>
-            </p>
-            <p>
-              <label>
-                <input id="zone-rect" class="with-gap" name="predict-region" type="radio"/>
-                <span>Rectangle</span>
-                <!--
-                <div class="right-align">
-                  <a class="waves-effect waves-light btn" id="draw-zone">Draw Zone</a>
-                </div>
-                -->
-              </label>
-            </p>
-            <p>
-              <label for="ignore-noise">
-                <input id="ignore-noise" type="checkbox" class="filled-in" />
-                <span>Ignore noise</span>
-              </label>
-            </p>
-          </div>
-
-          <!--
-          <div class="row" id="radius-picker">
-            <label for="radius-picker">Cluster Radius</label>
-            <p>
-              <label>
-                <input value="375" class="with-gap" name="cluster-radius" type="radio"/>
-                <span>375 m</span>
-              </label>
-
-              <label>
-                <input value="500" class="with-gap" name="cluster-radius" type="radio" checked/>
-                <span>500 m</span>
-              </label>
-              <br/>
-              <label>
-                <input value="750" class="with-gap" name="cluster-radius" type="radio" />
-                <span>750 m</span>
-              </label>
-            </p>
-          </div>
-          -->
-
-          <div class="row right-align">
-            <a class="waves-effect waves-light btn" id="draw-zone">Draw Zone</a>
-            <a class="waves-effect waves-light btn" id="do-predict">Predict</a>
+            <select id="region-list" class="select">
+              {% for label, roi in roi_list %}
+                {% if loop.first %}
+                  <option value="{{roi}}" selected="selected">{{label}}</option>"
+                {% else %}
+                  <option value="{{roi}}">{{label}}</option>"
+                {% endif %}
+              {% endfor %}
+            </select>
+            <label>Region</label>
           </div>
         </form>
       </div>
 
-      <span id="hotspot-info"></span>
-    </div>
-    <div class="container" id="history-controls">
-      <div class="section">
-        <form action="#" id="history-options">
-          <div class="row hide" id="hist-mode-picker">
-            <label for="history-mode">History Mode</label>
-            <p>
-              <label>
-                <input value="year" class="with-gap" name="histmode" type="radio" checked/>
-                <span>By year</span>
-              </label>
-            </p>
-            <p>
-              <label>
-                <input value="month" class="with-gap" name="histmode" type="radio" />
-                <span>By month</span>
-              </label>
-            </p>
-              <!-- <label>
-                <input value="range" class="with-gap" name="hist-mode" type="radio" />
-                <span>Time Range</span>
-              </label> -->
-          </div>
+      <div class="row divider"></div>
+      
+      <div class="row" id="section-tabs">
+        <ul class="tabs tabs-fixed-width">
+          <li class="tab col"><a class="active" href="#hotspot-controls">Predict</a></li>
+          <li class="tab col"><a href="#history-controls">History</a></li>
+        </ul>
+      </div>
 
-          <div class="row subopts-mode" id="hist-mode-year">
-            <div class="input-field col s6">
-              <input type="number" id="target-year" min="2009" required="true">
-              <label for="lag-years">Year</label>
+      <div id="hotspot-controls">
+        <div class="row">
+          <form action="#" id="map-options">
+            <div class="input-field">
+              <input type="text" class="datepicker" id="hotspot-date" />
+              <label class="active" for="hotspot-date">Hotspot Date</label>
             </div>
-            <div class="input-field col s6">
-              <input type="number" id="lag-years" min="0" class="validate">
-              <label for="lag-years">Offset</label>
-              <span class="helper-text" data-error="Invalid offset">
-              Offset from selected years
+            <div class="">
+              <p class="range-field">
+                <input type="range" min="0" max="30" value="30" id="hotspot-date-offset" />
+              </p>
+            </div>
+            <div class="">
+              <p>
+                <label for="past-24h">
+                  <input id="past-24h" type="checkbox" class="filled-in" />
+                  <span>Display hotspots from the past 24 hours</span>
+                </label>
+              </p>
+            </div>
+          </form>
+        </div>
+        <div class="row divider"></div>
+        <div class="row">
+          <form action="#" id="predict-options">
+            <div class="input-field">
+              <input type="number" id="lag-days" min="1" max="10" value="1"/>
+              <label class="active" for="lag-days">
+                Previous Data Range (Days)
+              </label>
+              <span class="helper-text">
+                Used in estimating burned areas.
               </span>
             </div>
-          </div>
 
-          <div class="row subopts-mode" id="hist-mode-month">
-            Quark!
-          </div>
+            <div>
+              {#<label>Hotspot points to ignore</label>#}
+              <p>
+                <label for="ignore-noise">
+                  <input id="ignore-noise" type="checkbox" class="filled-in" />
+                  <span>Ignore Noise</span>
+                </label>
+              </p>
+              {#<p>
+                <label for="ignore-low">
+                  <input id="ignore-low" type="checkbox" class="filled-in" />
+                  <span>Low Confidence {{"(<30%)"|safe}}</span>
+                </label>
+              </p>#}
+            </div>
 
-          <div class="row right-align">
-            <a class="waves-effect waves-light btn" id="do-history">Show</a>
-          </div>
-        </form>
-        <form id="ym-select" action="#">
-          <div class="input-field col s6">
-            {{ ym_select.year() }}
-            {{ ym_select.year.label }} 
-          </div>
-          <div class="input-field col s6">
-            {{ ym_select.month() }}
-            {{ ym_select.month.label }}
-          </div>
-          <div class="row right-align">
-            <a class="waves-effect waves-light btn" id="do-yeet">Post</a>
-          </div>
-        </form>
-        {% for error in ym_select.errors.first_name %}
-          {{ error }}
-        {% endfor %}
-        </form>
+            <div class="right-align">
+              <a class="waves-effect waves-darken btn-flat pink-text" id="predict-reset">Clear Map</a>
+              <a class="waves-effect waves-light btn" id="do-predict">Predict</a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="history-controls">
+        <div class="section">
+          <form action="#" id="history-options">
+            {{ hisctrl.csrf_token }}
+            {% macro year_month(form) -%}
+            <div class="row valign-wrapper">
+              <span class="inline col s4">{{ form.label.text }}</span>
+              <div class="input-field inline col s3">
+                {{ form.year() }}
+                {{ form.year.label }}
+                <!--<span class="helper-text">{{ form.year.label.text }}</span>-->
+              </div>
+              <div class="input-field inline col s5">
+                {{ form.month() }}
+                {{ form.month.label }}
+                <!--<span class="helper-text">{{ form.month.label.text }}</span>-->
+              </div>
+            </div>
+            {%- endmacro %}
+
+            <div class="row subopts-mode" id="hist-mode-year">
+              {{ year_month(hisctrl.start) }}
+              
+              {{ year_month(hisctrl.end) }}
+
+              {{ hisctrl.data_type.label }}
+              {% for subfield in hisctrl.data_type %}
+              <p>
+                <label>
+                  {{ subfield(class_="with-gap") }} <span>{{ subfield.label.text }}</span>
+                </label>
+              </p>
+              {% endfor %}
+            </div>
+
+            <div class="row right-align">
+              <a class="waves-effect waves-light btn" id="do-history">Show</a>
+            </div>  
+          </form>
+        </div>
       </div> 
-      <!--
-        * region
-          - region picker
-        * mode
-          - annually (yyyy-01-01 to (yyyy+1)-01-01)
-            - year picker (start, end)
-          - year-monthly (yyyy-mm-01 to yyyy-(mm+1)-01)
-            - year picker (start, end)
-            - month picker (start, end)
-          - monthly across years (monthly across all year)
-            - month picker (end)
-      -->
     </div>
   </div>
+  
 </div>
 
 <script type="text/python" src="{{ url_for('static', filename='agni_map.bry.py') }}">
-{% endblock content %}
+{% endblock barecontent %}

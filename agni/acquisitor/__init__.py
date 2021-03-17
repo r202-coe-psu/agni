@@ -3,21 +3,16 @@ import time
 import queue
 import datetime
 
-from contextlib import contextmanager
+from .service import Fetcher, sleep_log
 
-import pandas as pd
-import ciso8601
-import pytz
-
-from influxdb import InfluxDBClient
-
-from . import service
-
-#from .. import models
-#from ..models import influxdb
+from .. import models
+from ..notify import NotifierDaemon
+from ..util import timefmt
 
 import logging
 logger = logging.getLogger(__name__)
+
+DEMO_URL = "https://t.coe.psu.ac.th/~6010110106/agni-demo/hotspot-inject.txt"
 
 class Server:
     SLEEP_SHORT = datetime.timedelta(seconds=10)
@@ -26,42 +21,63 @@ class Server:
     def __init__(self, settings):
         self.settings = settings
         self.running = False
+        self.demo = False
 
         logging.basicConfig(
             level=logging.DEBUG,
             format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
             datefmt='%m-%d %H:%M'
         )
-        # models.init_mongoengine(
-        #         settings)
-        self.fetch_db = service.FetcherDatabase(settings)
-        self.fetcher = service.Fetcher(self.fetch_db)
-    
 
-    def sleep(self, duration: datetime.timedelta):
-        next_wake = (datetime.datetime.now() + duration).isoformat()
-        logger.debug(
-            'Sleeping, next wake in {dur} (at {at})'.format(
-                dur=timefmt.format_delta(duration),
-                at=next_wake
-            ), 
-        )
-        time.sleep(duration.total_seconds())
+        self.database = models.HotspotDatabase(settings)
+        models.init_mongoengine(settings)
 
+        self.fetcher = Fetcher(settings, self.database)
+
+        demo_mode = settings.get('FETCHER_DEMO_MODE')
+        if demo_mode is not None and demo_mode == 'yes':
+            logger.debug(r'//////// DEMO MODE ENABLED ////////')
+            self.demo = True
+
+        self.notify_queue = queue.Queue()
+        self.out_queues = [self.notify_queue]
+
+        self.notifyd = NotifierDaemon(settings, in_queue=self.notify_queue)
+        self.notifyd.start()
+
+    def demo_injector(self, base_data=None):
+        logger.debug(r'//////// DEMO INJECTOR ACTIVE ////////')
+        import requests
+        from pandas import concat, DataFrame
+        from .fetch_nrt import process_csv_pandas
+
+        req = requests.get(DEMO_URL)
+        if req.ok:
+            demo_data = process_csv_pandas(req.text)
+            hotspots = concat([base_data, demo_data], join='inner')
+            return hotspots
+        return DataFrame()
+        
     def run(self):
-        self.fetch_db.wait_server()
+        self.database.wait_server()
         self.running = True
-        while(self.running):
+        while self.running:
             try:
-                self.fetcher.fetch()
-                logger.info('Fetch succeded')
-                self.sleep(self.SLEEP_LONG)
+                new_data = self.fetcher.update_data(write=True)
+                if self.demo:
+                    new_data = self.demo_injector(new_data)
+                if len(new_data) > 0:
+                    for q in self.out_queues:
+                        q.put(new_data)
+                sleep_log(self.SLEEP_LONG)
             except Exception as e:
                 logger.exception(e)
-                logger.info('Fetch encounter an error, retrying ...')
-                self.sleep(self.SLEEP_SHORT)
-                
-            
+                logger.error('Fetch encounter an error, retrying ...')
+                sleep_log(self.SLEEP_SHORT)
+
+    def stop(self):
+        self.running = False
+
 
 def create_server(settings):
     return Server(settings)

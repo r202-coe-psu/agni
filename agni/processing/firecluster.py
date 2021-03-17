@@ -9,8 +9,13 @@ from shapely.geometry import MultiPoint
 
 # Constants
 KMS_PER_RAD = 6371.0088
-STEP_SIZE_KM = 0.375 * 1.5
-CLUSTER_DB = cluster.DBSCAN(algorithm='ball_tree', metric='haversine')
+
+CLUSTER_ALGO = 'ball_tree'
+CLUSTER_METRIC = 'haversine'
+CLUSTER_RADIUS_KM = 0.375 * 1.5
+CLUSTER_MIN_SAMPLES = 4
+
+NOISE_LABEL = -1
 
 COORDS_KEY = ['latitude', 'longitude']
 CLUSTER_KEY = 'cluster'
@@ -20,17 +25,31 @@ def get_epsilon(dist_km):
 
     return dist_km / KMS_PER_RAD
 
+def create_dbscan(
+        algorithm=None, metric=None, radius_km=None, min_samples=None
+    ):
+    _algo = algorithm or CLUSTER_ALGO
+    _metric = metric or CLUSTER_METRIC
+    _step_km = radius_km or CLUSTER_RADIUS_KM
+    _min_samples = min_samples or CLUSTER_MIN_SAMPLES
+
+    db = cluster.DBSCAN(algorithm=_algo, metric=_metric)
+    db.eps = get_epsilon(_step_km)
+    db.min_samples = _min_samples
+
+    return db
+
 def process_labels(nrt_df, db):
     labels = db.labels_
     labels_series = pd.Series(labels)
-    labels_series[db.labels_ == -1] = np.nan
+    labels_series[db.labels_ == NOISE_LABEL] = np.nan
     nrt_df['cluster'] = labels_series
 
     # classifying cluster types
     dbccol = pd.Series(labels)
     dbccol[:] = 'edge'
     dbccol[db.core_sample_indices_] = 'core'
-    dbccol[db.labels_ == -1] = 'noise'
+    dbccol[db.labels_ == NOISE_LABEL] = 'noise'
     nrt_df['dbscan'] = dbccol
 
     return nrt_df
@@ -70,9 +89,7 @@ def cluster_fire(nrt_points, db=None, key=None, eps=None):
 
     # do clustering using dbscan
     if db is None:
-        db = CLUSTER_DB
-        db.eps = STEP_SIZE_KM / KMS_PER_RAD
-        db.min_samples = 5
+        db = create_dbscan()
 
     db.fit(np.radians(coords))
 
@@ -82,6 +99,11 @@ def cluster_fire(nrt_points, db=None, key=None, eps=None):
 def drop_noise(nrt_points):
     nrt_df = pd.DataFrame(nrt_points)
     return full_record(nrt_df[nrt_df['dbscan'] != 'noise'])
+
+def drop_low_confidence(nrt_points):
+    nrt_df = pd.DataFrame(nrt_points)
+    result = nrt_df[nrt_df['confidence'] not in ['l', 'low']]
+    return result
 
 def get_centroid(cluster):
     """ get centroids from group of points """
