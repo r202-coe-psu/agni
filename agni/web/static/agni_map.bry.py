@@ -57,10 +57,20 @@ def get_cell_style(feature):
     celltype = feature.properties.celltype
     return CELLSTYLE[celltype]
 
+CHOROPLETH_BINS = ['#ffffb2','#fecc5c','#fd8d3c','#e31a1c']
+
 ZONE_SELECT_STYLE = {
     'weight': 2,
     'fillOpacity': 0,
     'dashArray': '8, 8'
+}
+
+CLUSTER_CONVEX_STYLE = {
+    'weight': 2,
+    'fillOpacity': 0.2,
+    'dashArray': '4, 4',
+    'color': CHOROPLETH_BINS[3],
+    'fillColor': CHOROPLETH_BINS[1]
 }
 
 # set up materialize css stuff
@@ -200,7 +210,6 @@ def map_options_changed(ev):
     if change_src == 'hotspot-date-offset':
         # changes from slider
         document['hotspot-date'].value = date_slider.strftime('%Y-%m-%d')
-
     elif change_src == 'hotspot-date':
         # changes from date picker
         new_offset = today - date_cal
@@ -262,6 +271,11 @@ def request_predict(ev):
         "error": req_error
     })
 
+@bind('#do-predict-clear', 'click')
+def clear_predict(ev):
+    predict_layer.clearLayers()
+    zone_layer.clearLayers()
+
 def wtforms_csrf_inject(csrf_token):
     def add_csrf(xhr, settings):
         re = js.RegExp.new('^(GET|HEAD|OPTIONS|TRACE)$', 'i')
@@ -290,7 +304,6 @@ def props_format_html(props, unit=''):
 # choropleth
 # low to high
 chrp = None
-CHOROPLETH_BINS = ['#ffffb2','#fecc5c','#fd8d3c','#e31a1c']
 
 def info_onadd(map_):
     this = js.this()
@@ -439,7 +452,93 @@ def show_history(ev):
         }
     )
     ev.preventDefault()
+
+@bind('#color-frp', 'click')
+def color_hotspots_frp(ev):
+    layer_js = raw_layer.getLayers()[0].getLayers()[0]
+    layers = layer_js.getLayers()
+    for layer in layers:
+        props = layer.feature.properties
+        style = color_frp(props)
+        layer.setStyle(style)
+    
+    def raise_layer(layer):
+        props = layer.feature.properties
+        if props.frp >= 90:
+            layer.bringToFront()
+    layer_js.eachLayer(raise_layer)
+
+
+@bind('#color-confidence', 'click')
+def color_hotspots_confidence(ev):
+    layer_js = raw_layer.getLayers()[0].getLayers()[0]
+    layers = layer_js.getLayers()
+    for layer in layers:
+        props = layer.feature.properties
+        style = color_confidence(props)
+        layer.setStyle(style)
+
+    def raise_layer(layer):
+        props = layer.feature.properties
+        if confidence_coerce(props) == 'high':
+            layer.bringToFront()
+    layer_js.eachLayer(raise_layer)
+
+@bind('#color-confidence', 'click')
+@bind('#color-frp', 'click')
+def change_button_color(ev):
+    target = ev.target
+    for id_class in ['color-frp', 'color-confidence']:
+        if id_class in target.id:
+            document[id_class].classList.replace('btn-flat', 'btn')
+        else:
+            document[id_class].classList.replace('btn', 'btn-flat')
+
 # turf test
+
+def color_frp(props):
+    frp = props.frp
+    if frp < 30:
+        return dict(
+            BASE_MARKER_OPTS, 
+            color=CHOROPLETH_BINS[1], 
+            opacity=0.35
+        )
+    elif 30 <= frp < 90:
+        return dict(BASE_MARKER_OPTS, color=CHOROPLETH_BINS[2])
+    else:
+        return dict(BASE_MARKER_OPTS, color=CHOROPLETH_BINS[3])
+
+def confidence_coerce(props):
+    def confidence_map(percent):
+        if 75 <= percent <= 100:
+            return 'high'
+        elif 0 <= percent < 30:
+            return 'low'
+        else:
+            return 'nominal'
+
+    try:
+        return props.confidence
+    except AttributeError:
+        return confidence_map(props.confidence_percent)
+
+
+def color_confidence(props):
+    confidence_colors_map = {
+        'low': CHOROPLETH_BINS[1],
+        'nominal': CHOROPLETH_BINS[2],
+        'high': CHOROPLETH_BINS[3]
+    }
+
+    conf = confidence_coerce(props)
+
+    opts = dict(
+        BASE_MARKER_OPTS,
+        color=confidence_colors_map[conf],
+        fillOpacity=(conf == 'high' and 0.7 or 0.5)
+    )
+    return opts
 
 def cluster_data(resp, status, jqxhr):
     marker_layer.clearLayers()
@@ -465,48 +564,25 @@ def cluster_data(resp, status, jqxhr):
         ctr.addTo(turf_layer)
 
         cnv = turf.convex(cluster)
-        leaflet.geoJSON(cnv).addTo(turf_layer)
+        leaflet.geoJSON(cnv, {'style': CLUSTER_CONVEX_STYLE}).addTo(turf_layer)
 
     clustered = geojson
     turf.clusterEach(clustered, "cluster", process_cluster)
-
-    def confidence_map(percent):
-        if 75 <= percent <= 100:
-            return 'high'
-        elif 0 <= percent < 30:
-            return 'low'
-        else:
-            return 'nominal'
-
-    #CONFIDENCE_BIN = ['#ffeda0','#feb24c','#f03b20']
-    confidence_colors = {
-        'low': CHOROPLETH_BINS[1],
-        'nominal': CHOROPLETH_BINS[2],
-        'high': CHOROPLETH_BINS[3]
-    }
         
     def turf_markers(feature, latlng):
-        props = feature.properties.to_dict()
-        if 'confidence_percent' in props:
-            conf = confidence_map(props['confidence_percent'])
-        else:
-            conf = props['confidence']
-        opts = dict(
-            BASE_MARKER_OPTS,
-            color=confidence_colors[conf],
-            fillOpacity=(conf == 'high' and 0.7 or 0.5)
-        )
+        props = feature.properties
+        opts = color_frp(props)
         return leaflet.circleMarker(latlng, opts)
 
     def turf_features(feature, layer):
-        features_dict = feature.properties.to_dict()
+        props = feature.properties.to_dict()
 
         # format time for display
-        utc_time = js.Date.new(features_dict['time'])
-        features_dict['time'] = utc_time.toLocaleString()
+        utc_time = js.Date.new(props['time'])
+        props['time'] = utc_time.toLocaleString()
         features_str = [
             "<b>{}</b>: {}".format(k, v)
-            for k, v in features_dict.items()
+            for k, v in props.items()
         ]
 
         coords = layer.getLatLng() # leaflet's LatLon object

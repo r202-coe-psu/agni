@@ -66,14 +66,21 @@
                 <input type="range" min="0" max="30" value="30" id="hotspot-date-offset" />
               </p>
             </div>
-            <div class="">
+            <div>
+              <label>Color hotspots by</label>
+              <div>
+                <a class="waves-effect waves-light btn" id="color-frp">FRP</a>
+                <a class="waves-effect waves-light btn-flat" id="color-confidence">Confidence</a>
+              </div>
+            </div>
+            {#<div class="">
               <p>
                 <label for="past-24h">
                   <input id="past-24h" type="checkbox" class="filled-in" />
                   <span>Display hotspots from the past 24 hours</span>
                 </label>
               </p>
-            </div>
+            </div>#}
           </form>
         </div>
         <div class="row divider"></div>
@@ -106,7 +113,7 @@
             </div>
 
             <div class="right-align">
-              <a class="waves-effect waves-darken btn-flat pink-text" id="predict-reset">Clear Map</a>
+              <a class="waves-effect waves-light btn-flat pink-text" id="do-predict-clear">Clear</a>
               <a class="waves-effect waves-light btn" id="do-predict">Predict</a>
             </div>
           </form>
