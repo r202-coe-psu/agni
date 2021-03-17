@@ -19,6 +19,9 @@ from ..util import timefmt, ranger
 import logging
 logger = logging.getLogger(__name__)
 
+LOCAL_TZ = pytz.timezone('Asia/Bangkok')
+TWO_MONTHS = datetime.timedelta(days=60)
+
 def sleep_log(duration: datetime.timedelta):
     next_wake = (datetime.datetime.now() + duration).isoformat()
     logger.debug(
@@ -29,10 +32,12 @@ def sleep_log(duration: datetime.timedelta):
     )
     time.sleep(duration.total_seconds())
 
-class Fetcher:
-    LOCAL_TZ = pytz.timezone('Asia/Bangkok')
-    TWO_MONTHS = datetime.timedelta(days=60)
+def current_time(utc=False):
+    now_local = datetime.datetime.now()
+    now_utc = LOCAL_TZ.localize(now_local).utcnow()
+    return now_utc if utc else now_local
 
+class Fetcher:
     def __init__(self, settings, database: HotspotDatabase):
         self.firms_token = settings.get('FIRMS_API_TOKEN')
         self.database = database
@@ -40,14 +45,9 @@ class Fetcher:
         fetch_nrt.set_token(self.firms_token)
     
     def oldest_data_date(self):
-        oldest = self.current_time(utc=True) - self.TWO_MONTHS
+        oldest = current_time(utc=True) - TWO_MONTHS
         oldest = oldest.replace(hour=0, minute=0, second=0, microsecond=0)
         return oldest
-    
-    def current_time(self, utc=False):
-        now_local = datetime.datetime.now()
-        now_utc = self.LOCAL_TZ.localize(now_local).utcnow()
-        return now_utc if utc else now_local
 
     def fetch_live_data(self, date, src=None, region=None, silent=False):
         result = fetch_nrt.get_nrt_data(date=date, src=src, silent_404=silent)
@@ -79,7 +79,7 @@ class Fetcher:
     def update_data(self, write=True):
         latest = self.latest_time()
         fetch_start = max(self.oldest_data_date(), latest)
-        fetch_end = self.current_time(utc=True)
+        fetch_end = current_time(utc=True)
         logger.debug(
             'Start: {}, End: {}'.format(
                 fetch_start.isoformat(),

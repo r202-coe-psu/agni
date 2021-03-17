@@ -132,6 +132,13 @@ def process_csv(raw_csv):
     # return hotspots
     return hotspots
 
+def df_as_dict(df: pd.DataFrame):
+    df_list = df.to_dict('records')
+    for point in df_list:
+        point['time'] = point['time'].to_pydatetime()
+
+    return df_list
+
 def process_csv_pandas(raw_csv, as_dict=False):
     csv_str_io = io.StringIO(raw_csv)
     hotspots = pd.read_csv(
@@ -151,15 +158,11 @@ def process_csv_pandas(raw_csv, as_dict=False):
                         + pd.to_timedelta(time_dupe, unit='us'))
 
     if as_dict:
-        hotspots_list = hotspots.to_dict('records')
-        for point in hotspots_list:
-            point['time'] = point['time'].to_pydatetime()
-
-        return hotspots_list
+        return df_as_dict(hotspots)
 
     return hotspots
 
-def request_nrt(date=None, src=SRC_VIIRS, token=None):
+def request_nrt(date=None, src=SRC_SUOMI, token=None):
     """Fetch NRT Data from NASA (SEA Region) by date
 
     Args:
@@ -185,15 +188,20 @@ def request_nrt(date=None, src=SRC_VIIRS, token=None):
     )
     return r
 
-def get_nrt_data(date=None, src=None, silent_404=True, token=None):
+def get_nrt_data(
+        date=None, src=None, silent_404=True, as_dict=True, token=None
+    ):
     if src is None:
-        src = SRC_VIIRS
+        src = SRC_SUOMI
     token = check_token(token)
 
     hotspots = []
     req = request_nrt(date, src, token)
     if req.ok:
-        hotspots = process_csv_pandas(req.text, as_dict=True)
+        hotspots = process_csv_pandas(req.text)
+        hotspots['instrument'] = 'MODIS' if src == SRC_MODIS else 'VIIRS'
+        if as_dict:
+            hotspots = df_as_dict(hotspots)
     elif req.status_code == 404 and silent_404:
         warn_str = 'Server reported 404 for file {}.'.format(req.url)
         warnings.warn(warn_str)
