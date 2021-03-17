@@ -83,10 +83,13 @@ sel_instances = mcss.FormSelect.init(sel_elems)
 tab_elems = document.querySelectorAll('.tabs')
 tab_instances = mcss.Tabs.init(tab_elems)
 
+range_elems = document.querySelectorAll("input[type=range]")
+range_instance = mcss.Range.init(range_elems)
+
+# leaflet init
 lmap = leaflet.map("mapdisplay", {
     "preferCanvas": True,
-    "doubleClickZoom": False,
-    "editable": True
+    "doubleClickZoom": False
 })
 
 marker_layer = leaflet.LayerGroup.new()
@@ -113,11 +116,6 @@ roi_name = 'all'
 
 fetch_in_progress = False
 
-fetch_satellite = {
-    "modis" : True,
-    "viirs" : True
-}
-
 def toast(text, icon=None, **toastopts):
     html_icon = ''
     if icon is not None:
@@ -131,21 +129,6 @@ def toast(text, icon=None, **toastopts):
     }
 
     return mcss.Toast.new(dict(opts, **toastopts))
-
-def query_ajax(target=None):
-    """ send request to server using ajaxmarker_layer
-        Args: target (string): 
-            date to query, formatted to '%Y-%m-%d'
-    """
-    data = {}
-    if target is not None:
-        data = { "date" : target }
-
-    jq.ajax('/hotspots', {
-        "dataType": "json",
-        "data": data,
-        "success": hotspot_get_jq
-    })
 
 def change_or_query(target=None):
     """ check if target date is queried before query for new entry
@@ -171,19 +154,12 @@ def change_or_query(target=None):
     try:
         turf_dated[target_jul, roi_name, 'raw'].addTo(raw_layer)
         turf_dated[target_jul, roi_name, 'turf'].addTo(clustered_layer)
-        enable_input(True)
     except KeyError:
         fetch_in_progress = True
         query_ajax_cluster(target_str)
 
-def enable_input(state=True):
-    pass
-    #document['hotspot-date-offset'].disabled = not state
-    #document['hotspot-date'].disabled = not state
-
-def date_from_offset(offset, maxdelta=60):
-    # maxdelta of 60 since live NRT data is stored 
-    # for at most 2 months (60 days)
+def date_from_offset(offset, maxdelta=30):
+    # maxdelta of 30 for last month
     today = datetime.datetime.today()
     delta = datetime.timedelta(days=(maxdelta-offset))
 
@@ -210,7 +186,6 @@ def region_changed(ev):
         roi_name = ev.target.value
         draw_roi(roi_name)
 
-
 @bind('#map-options', 'change')
 def map_options_changed(ev):
     today = datetime.datetime.today()
@@ -224,77 +199,20 @@ def map_options_changed(ev):
     if change_src == 'hotspot-date-offset':
         # changes from slider
         document['hotspot-date'].value = date_slider.strftime('%Y-%m-%d')
-        target = date_slider
 
     elif change_src == 'hotspot-date':
         # changes from date picker
         new_offset = today - date_cal
-        document['hotspot-date-offset'].value = max(0, 60-new_offset.days)
-        target = date_cal
-
-def switch_subopts(mode):
-    subopts = document.select('.subopts-mode')
-    #print(subopts)
-    for subopt in subopts:
-        if subopt.id == 'hist-mode-{}'.format(mode):
-            subopt.hidden = False
-        else:
-            subopt.hidden = True
-
-
-@bind('#history-options', 'change')
-def history_options_changed(ev):
-    if ev.target.attrs.get('name', None) == 'histmode':
-        pass
-        #value = document['history-options'].histmode.value
-        #switch_subopts(mode=value)
+        document['hotspot-date-offset'].value = max(0, 30-new_offset.days)
 
 predict_zone = 'zone-roi'
 zone_layer = leaflet.LayerGroup.new()
 zone_rect = None
 zone_bounds = None
 
-def dumpbounds(ev):
-    print(ev.layer.getBounds().toBBoxString())
-    ev.layer.editor.toggleEdit()
-zone_layer.on('dbclick', dumpbounds)
-
-@bind('#predict-options', 'change')
-#@bind('#predict-options', 'click')
-def predict_options_changed(ev):
-    global predict_zone
-    src = ev.target.id
-    if 'zone' in src:
-        predict_zone = src
-        window.predict_zone = predict_zone
-
-@bind('#draw-zone', 'click')
-def draw_zone_rect(ev):
-    global zone_rect
-    zone_layer.clearLayers()
-    zone_rect = lmap.editTools.startRectangle()
-    zone_rect.setStyle(ZONE_SELECT_STYLE)
-    zone_rect.addTo(zone_layer)
-
-def on_draw_rect(ev):
-    global zone_bounds
-    bounds = ev.layer.getBounds().toBBoxString()
-    zone_bounds = bounds
-    ev.layer.dragging.enable()
-    #ev.layer.editor.disable()
-
-def on_drag_rect(ev):
-    global zone_bounds
-    bounds = ev.layer.getBounds().toBBoxString()
-    zone_bounds = bounds
-
 @bind('#do-predict', 'click')
 def request_predict(ev):
-    print(predict_zone)
-    if predict_zone == 'zone-rect' and zone_rect is not None:
-        bounds = zone_bounds
-        print(bounds)
-    elif predict_zone == 'zone-roi' and roi_name != 'all':
+    if predict_zone == 'zone-roi' and roi_name != 'all':
         b = roi_layer.getBounds()
         bounds = b.toBBoxString()
         print(bounds)
@@ -303,15 +221,19 @@ def request_predict(ev):
         z.addTo(zone_layer).addTo(lmap)
     else:
         print('not possible')
+        toast("Invalid Selection.")
         return
 
-    noise = document["ignore-noise"].checked
+    drop_noise = document["ignore-noise"].checked
+    drop_low = document['ignore-low'].checked
+    lag = document['lag-days'].value
 
     req_params = {
-        'lag': 3,
+        'lagdays': int(lag),
         'area': bounds,
         'date': document['hotspot-date'].value,
-        'dropnoise': noise
+        'dropnoise': drop_noise,
+        'droplow': drop_low
     }
     print(req_params)
 
@@ -396,7 +318,6 @@ Info_ctrl = leaflet.Control.extend({
 })
 info_ctrl = Info_ctrl.new()
 info_ctrl.addTo(lmap)
-
 # /choropleth
 
 def value_map(value, in_bounds, out_bounds):
@@ -505,8 +426,7 @@ def show_history(ev):
               icon='error')
 
     wtforms_csrf_inject(csrf_token)
-    jq.ajax(
-        "/history/{region}/{data_type}".format(
+    jq.ajax("/history/{region}/{data_type}".format(
             region=roi_name, data_type=data_type
         ),
         {
@@ -517,15 +437,8 @@ def show_history(ev):
             'error': req_error
         }
     )
-
     ev.preventDefault()
-
-lmap.on('editable:drawing:commit', on_draw_rect)
-lmap.on('editable:drag', on_drag_rect)
-#lmap.on('editable:vertex:dragend', on_drag_rect)
-
 # turf test
-# only works with VIIRS data point
 
 def cluster_data(resp, status, jqxhr):
     marker_layer.clearLayers()
@@ -534,7 +447,7 @@ def cluster_data(resp, status, jqxhr):
 
     geojson = resp
     # draw cluster convex and centroid to separate layer
-    def process_cluster(cluster,clusterValue,currentIndex): 
+    def process_cluster(cluster, clusterValue, currentIndex):
         count = len(cluster.features)
         ch = turf.centroid(cluster)
         ctr = leaflet.geoJSON(ch)
@@ -553,9 +466,6 @@ def cluster_data(resp, status, jqxhr):
         cnv = turf.convex(cluster)
         leaflet.geoJSON(cnv).addTo(turf_layer)
 
-    # clustering radius in km
-    CLUSTER_RADIUS = 0.375 * 1.5
-    #clustered = turf.clustersDbscan(geojson, CLUSTER_RADIUS)
     clustered = geojson
     turf.clusterEach(clustered, "cluster", process_cluster)
 
@@ -616,26 +526,19 @@ def cluster_data(resp, status, jqxhr):
     global fetch_in_progress
     fetch_in_progress = False
 
-    enable_input(True)
-
 def query_ajax_cluster(target=None):
     """ send request to server using ajax
         Args: target (string): 
             date to query, formatted to '%Y-%m-%d'
     """
     def query_error(jqxhr, errortype, text):
-        #document['hotspot-info'].text = "E{}: {}".format(jqxhr.status, text)
         toast("Error {}: {}".format(jqxhr.status, text))
-        enable_input(True)
 
-    def query_succes(resp, status, jqxhr):
+    def query_success(resp, status, jqxhr):
         if jqxhr.status == 200:
-            document['hotspot-info'].text = ''
             cluster_data(resp, status, jqxhr)
         elif jqxhr.status == 204:
-            #document['hotspot-info'].text = 'No data'
             toast('No data', icon='info')
-            enable_input(True)
 
     data = {}
     if target is not None:
@@ -646,20 +549,18 @@ def query_ajax_cluster(target=None):
     jq.ajax('/clustered.geojson', {
         "dataType": "json",
         "data": data,
-        "success": query_succes,
+        "success": query_success,
         "error": query_error
     })
-
 # /turf test
 
 @bind('#hotspot-query', 'click')
 @bind('#hotspot-date', 'change')
 def date_query(ev):
-    enable_input(False)
     target_val = document['hotspot-date'].value
     target = datetime.datetime.strptime(target_val, '%Y-%m-%d')
     slider_offset = datetime.datetime.today() - target
-    slider_offset = max(0, 60-slider_offset.days)
+    slider_offset = max(0, 30-slider_offset.days)
     document['hotspot-date-offset'].value = slider_offset
     change_or_query(target)
 
@@ -667,7 +568,7 @@ def date_query(ev):
 @bind('#hotspot-date-offset', 'input')
 def slider_sync_date(ev):
     offset = document['hotspot-date-offset'].value
-    offset = 60 - int(offset)
+    offset = 30 - int(offset)
     delta = datetime.timedelta(days=offset)
     target = datetime.datetime.today() - delta
     target_str = target.strftime('%Y-%m-%d')
@@ -676,33 +577,14 @@ def slider_sync_date(ev):
 
 @bind('#hotspot-date-offset', 'change')
 def date_query_slider(ev):
-    enable_input(False)
     offset = document['hotspot-date-offset'].value
-    offset = 60 - int(offset)
+    offset = 30 - int(offset)
     delta = datetime.timedelta(days=offset)
     target = datetime.datetime.today() - delta
-
     change_or_query(target)
-
-def hotspot_get_jq(resp_data, text_status, jqxhr):
-    # resp_data.data is already json
-    if resp_data['status'] == 'success':
-        viirs_layer.clearLayers()
-        modis_layer.clearLayers()
-        document['hotspot-info'].text = 'Loading...'
-    else:
-        #document['hotspot-info'].text = 'Error retrieving hotspots'
-        toast('Error retrieving hotspots', icon='error')
-        enable_input(True)
-
-    global fetch_in_progress
-    fetch_in_progress = False
-
 
 def map_load_init(ev):
     query_ajax_cluster()
-    #value = document['history-options'].histmode.value
-    #switch_subopts(mode=value)
 
 lmap.on('load', map_load_init)
 
