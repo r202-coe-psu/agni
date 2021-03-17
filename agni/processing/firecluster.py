@@ -100,6 +100,11 @@ def drop_noise(nrt_points):
     nrt_df = pd.DataFrame(nrt_points)
     return full_record(nrt_df[nrt_df['dbscan'] != 'noise'])
 
+def drop_low_confidence(nrt_points):
+    nrt_df = pd.DataFrame(nrt_points)
+    result = nrt_df[nrt_df['confidence'] not in ['l', 'low']]
+    return result
+
 def get_centroid(cluster):
     """ get centroids from group of points """
 

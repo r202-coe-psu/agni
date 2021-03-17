@@ -261,18 +261,16 @@ def get_clustered_hotspots():
 
 @module.route('/predict.geojson')
 def get_prediction():
-    queryargs = request.args
+    args = request.args
 
-    requested_date = queryargs.get('date', type=str)
-    lagdays = queryargs.get('lag', type=int)
-    bounds = queryargs.get('area', type=str)
-    ignorenoise = queryargs.get('dropnoise', type=str)
+    requested_date = args.get('date', type=str)
+    lagdays = args.get('lagdays', default=1, type=int)
+    bounds = args.get('area', type=str)
+    dropnoise = args.get('dropnoise', default='false', type=str)
+    droplow = args.get('droplow', default='false', type=str)
 
     if bounds is None:
         return '', 400
-
-    if ignorenoise is None:
-        ignorenoise = 'false'
 
     today = datetime.datetime.today()
     datestart = today
@@ -281,10 +279,6 @@ def get_prediction():
             datestart = datetime.datetime.strptime(requested_date, '%Y-%m-%d')
         except ValueError:
             datestart = today
-    target_julian = datestart.strftime('%Y%j')
-
-    if lagdays is None:
-        lagdays = 1
 
     start  = datestart - datetime.timedelta(days=lagdays)
     end = datestart - datetime.timedelta(days=1)
@@ -299,7 +293,7 @@ def get_prediction():
     #prev_data = filtering.filter_bbox(prev_data, area)
 
     current_data = firecluster.cluster_fire(current_sat_points)
-    if ignorenoise.casefold() == 'true':
+    if dropnoise.casefold() == 'true':
         current_data = firecluster.drop_noise(current_data)
     #current_data = filtering.filter_bbox(current_data, area)
 

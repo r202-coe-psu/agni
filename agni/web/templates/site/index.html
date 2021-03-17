@@ -27,17 +27,17 @@
   <div class="col s12 m8 l9 push-m4 push-l3" id="mapdisplay"></div>
   <!-- map controls -->
   <div class="col s12 m4 l3 pull-m8 pull-l9" id="mapcontrols" data-simplebar>
-    <div class="container">
+    <div class="container map-controls">
       <div>
         <form action="#" id="region-select">
           <div class="row input-field">
             <select id="region-list" class="select">
               {% for label, roi in roi_list %}
-              {% if loop.first %}
-              <option value="{{roi}}" selected="selected">{{label}}</option>"
-              {% else %}
-              <option value="{{roi}}">{{label}}</option>"
-              {% endif %}
+                {% if loop.first %}
+                  <option value="{{roi}}" selected="selected">{{label}}</option>"
+                {% else %}
+                  <option value="{{roi}}">{{label}}</option>"
+                {% endif %}
               {% endfor %}
             </select>
             <label>Region</label>
@@ -45,12 +45,14 @@
         </form>
       </div>
 
-      <div class="divider"></div>
-
-      <ul class="tabs tabs-fixed-width">
-        <li class="tab col"><a class="active" href="#hotspot-controls">Predict</a></li>
-        <li class="tab col"><a href="#history-controls">History</a></li>
-      </ul>
+      <div class="row divider"></div>
+      
+      <div class="row" id="section-tabs">
+        <ul class="tabs tabs-fixed-width">
+          <li class="tab col"><a class="active" href="#hotspot-controls">Predict</a></li>
+          <li class="tab col"><a href="#history-controls">History</a></li>
+        </ul>
+      </div>
 
       <div id="hotspot-controls">
         <div class="section">
@@ -61,40 +63,55 @@
             </div>
             <div class="row">
               <p class="range-field">
-                <input type="range" min="0" max="60" value="60" id="hotspot-date-offset" />
+                <input type="range" min="0" max="30" value="30" id="hotspot-date-offset" />
+              </p>
+            </div>
+            <div class="row">
+              <p>
+                <label for="past-24h">
+                  <input id="past-24h" type="checkbox" class="filled-in" />
+                  <span>Display hotspots from the past 24 hours</span>
+                </label>
               </p>
             </div>
           </form>
         </div>
 
-        <div class="divider"></div>
-
+        
+        <div class="row divider"></div>
         <div class="section">
           <form action="#" id="predict-options">
             <div class="row" id="zone-picker">
-              <label for="zone-picker">Prediction Area<label>
-              <p>
-                <label>
-                  <input id="zone-roi" class="with-gap" name="predict-region" type="radio" checked/>
-                  <span>Current Region</span>
+              <h6>Options</h6>
+              <div class="input-field">
+                <input type="number" id="lag-days" min="1" max="10" value="1"/>
+                <label class="active" for="lag-days">
+                  Previous Data Range
                 </label>
-              </p>
-              <p>
-                <label>
-                  <input id="zone-rect" class="with-gap" name="predict-region" type="radio"/>
-                  <span>Rectangle</span>
-                </label>
-              </p>
-              <p>
-                <label for="ignore-noise">
-                  <input id="ignore-noise" type="checkbox" class="filled-in" />
-                  <span>Ignore noise</span>
-                </label>
-              </p>
+                <span class="helper-text">
+                  Burned area estimated from hotspots this days old.
+                </span>
+              </div>
+
+              <div>
+                <label>Hotspot points to ignore</label>
+                <p>
+                  <label for="ignore-noise">
+                    <input id="ignore-noise" type="checkbox" class="filled-in" />
+                    <span>Noise</span>
+                  </label>
+                </p>
+                <p>
+                  <label for="ignore-low">
+                    <input id="ignore-low" type="checkbox" class="filled-in" />
+                    <span>Low Confidence {{"(<30%)"|safe}}</span>
+                  </label>
+                </p>
+              </div>
             </div>
 
-            <div class="row right-align">
-              <a class="waves-effect waves-light btn" id="draw-zone">Draw Zone</a>
+            <div class="right-align">
+              <a class="waves-effect waves-darken btn-flat pink-text" id="predict-reset">Clear Map</a>
               <a class="waves-effect waves-light btn" id="do-predict">Predict</a>
             </div>
           </form>
@@ -102,6 +119,7 @@
 
         <span id="hotspot-info"></span>
       </div>
+
       <div id="history-controls">
         <div class="section">
           <form action="#" id="history-options">
