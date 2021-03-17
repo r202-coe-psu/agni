@@ -13,7 +13,7 @@ BASE_MARKER_OPTS = {
     "stroke": False,
     "radius": 5,
     "color": 'orange',
-    "fillOpacity": 0.5
+    "fillOpacity": 0.7
 }
 
 DBSCAN_MARKER_OPTS = {
@@ -59,7 +59,8 @@ def get_cell_style(feature):
 
 ZONE_SELECT_STYLE = {
     'weight': 2,
-    'fillOpacity': 0.05
+    'fillOpacity': 0,
+    'dashArray': '8, 8'
 }
 
 # set up materialize css stuff
@@ -225,7 +226,7 @@ def request_predict(ev):
         return
 
     drop_noise = document["ignore-noise"].checked
-    drop_low = document['ignore-low'].checked
+    #drop_low = document['ignore-low'].checked
     lag = document['lag-days'].value
 
     req_params = {
@@ -233,7 +234,7 @@ def request_predict(ev):
         'area': bounds,
         'date': document['hotspot-date'].value,
         'dropnoise': drop_noise,
-        'droplow': drop_low
+        #'droplow': drop_low
     }
     print(req_params)
 
@@ -469,14 +470,32 @@ def cluster_data(resp, status, jqxhr):
     clustered = geojson
     turf.clusterEach(clustered, "cluster", process_cluster)
 
+    def confidence_map(percent):
+        if 75 <= percent <= 100:
+            return 'high'
+        elif 0 <= percent < 30:
+            return 'low'
+        else:
+            return 'nominal'
+
+    #CONFIDENCE_BIN = ['#ffeda0','#feb24c','#f03b20']
+    confidence_colors = {
+        'low': CHOROPLETH_BINS[1],
+        'nominal': CHOROPLETH_BINS[2],
+        'high': CHOROPLETH_BINS[3]
+    }
+        
     def turf_markers(feature, latlng):
         props = feature.properties.to_dict()
-        try:
-            conf = props.confidence_1
-        except AttributeError:
-            conf = 'n'
-        opts = dict(DBSCAN_MARKER_OPTS[props['dbscan']],
-                    stroke=(conf == 'h'))
+        if 'confidence_percent' in props:
+            conf = confidence_map(props['confidence_percent'])
+        else:
+            conf = props['confidence']
+        opts = dict(
+            BASE_MARKER_OPTS,
+            color=confidence_colors[conf],
+            fillOpacity=(conf == 'high' and 0.7 or 0.5)
+        )
         return leaflet.circleMarker(latlng, opts)
 
     def turf_features(feature, layer):

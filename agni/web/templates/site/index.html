@@ -55,18 +55,18 @@
       </div>
 
       <div id="hotspot-controls">
-        <div class="section">
+        <div class="row">
           <form action="#" id="map-options">
-            <div class="row input-field">
+            <div class="input-field">
               <input type="text" class="datepicker" id="hotspot-date" />
               <label class="active" for="hotspot-date">Hotspot Date</label>
             </div>
-            <div class="row">
+            <div class="">
               <p class="range-field">
                 <input type="range" min="0" max="30" value="30" id="hotspot-date-offset" />
               </p>
             </div>
-            <div class="row">
+            <div class="">
               <p>
                 <label for="past-24h">
                   <input id="past-24h" type="checkbox" class="filled-in" />
@@ -76,38 +76,33 @@
             </div>
           </form>
         </div>
-
-        
         <div class="row divider"></div>
-        <div class="section">
+        <div class="row">
           <form action="#" id="predict-options">
-            <div class="row" id="zone-picker">
-              <h6>Options</h6>
-              <div class="input-field">
-                <input type="number" id="lag-days" min="1" max="10" value="1"/>
-                <label class="active" for="lag-days">
-                  Previous Data Range
-                </label>
-                <span class="helper-text">
-                  Burned area estimated from hotspots this days old.
-                </span>
-              </div>
+            <div class="input-field">
+              <input type="number" id="lag-days" min="1" max="10" value="1"/>
+              <label class="active" for="lag-days">
+                Previous Data Range (Days)
+              </label>
+              <span class="helper-text">
+                Used in estimating burned areas.
+              </span>
+            </div>
 
-              <div>
-                <label>Hotspot points to ignore</label>
-                <p>
-                  <label for="ignore-noise">
-                    <input id="ignore-noise" type="checkbox" class="filled-in" />
-                    <span>Noise</span>
-                  </label>
-                </p>
-                <p>
-                  <label for="ignore-low">
-                    <input id="ignore-low" type="checkbox" class="filled-in" />
-                    <span>Low Confidence {{"(<30%)"|safe}}</span>
-                  </label>
-                </p>
-              </div>
+            <div>
+              {#<label>Hotspot points to ignore</label>#}
+              <p>
+                <label for="ignore-noise">
+                  <input id="ignore-noise" type="checkbox" class="filled-in" />
+                  <span>Ignore Noise</span>
+                </label>
+              </p>
+              {#<p>
+                <label for="ignore-low">
+                  <input id="ignore-low" type="checkbox" class="filled-in" />
+                  <span>Low Confidence {{"(<30%)"|safe}}</span>
+                </label>
+              </p>#}
             </div>
 
             <div class="right-align">
@@ -116,8 +111,6 @@
             </div>
           </form>
         </div>
-
-        <span id="hotspot-info"></span>
       </div>
 
       <div id="history-controls">
