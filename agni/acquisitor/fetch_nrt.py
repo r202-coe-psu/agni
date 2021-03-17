@@ -172,7 +172,7 @@ def request_nrt(date=None, src=SRC_SUOMI, token=None):
             defaults to today
         src (one of SRC_{VIIRS,SUOMI,NOAA,MODIS}):
             target satellite for request
-            defaults to VIIRS (optional)
+            defaults to SUOMI (optional)
     """
     token = check_token(token)
 

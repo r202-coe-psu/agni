@@ -29,6 +29,7 @@ head {
 
 #mapdisplay {
 	height: 100%;
+	z-index: 0;
 }
 
 @media screen and (max-width: 600px){
@@ -39,8 +40,12 @@ head {
 
 #mapcontrols {
 	padding-top: 1em;
-	overflow: auto;
-	scrollbar-width: thin;
+	/*overflow: auto;
+	scrollbar-width: thin;*/
+}
+
+.simplebar-scrollbar {
+	width: 8px;
 }
 
 .fullwidth-btn {

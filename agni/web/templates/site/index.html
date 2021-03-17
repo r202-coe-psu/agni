@@ -8,8 +8,6 @@
 <script src="{{ url_for('static', filename='node_modules/leaflet.path.drag/src/Path.Drag.js') }}"></script>
 
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='node_modules/materialize-css/extras/noUiSlider/nouislider.css') }}">
-<script src="{{ url_for('static', filename='node_modules/materialize-css/extras/noUiSlider/nouislider.js') }}"></script>
 
 <script src="{{ url_for('static', filename='node_modules/@turf/turf/turf.min.js') }}"></script>
 <script src="{{ url_for('static', filename='node_modules/@turf/turf/turf.js') }}"></script>
@@ -17,6 +15,9 @@
 
 {% block additional_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='agni_map.css') }}">
+
+<link rel="stylesheet" href="https://unpkg.com/simplebar@latest/dist/simplebar.css"/>
+<script src="https://unpkg.com/simplebar@latest/dist/simplebar.min.js"></script>
 {% endblock additional_head %}
 
 {# barecontent block sits outside of the materialize css container #}
@@ -25,7 +26,7 @@
   <!-- map -->
   <div class="col s12 m8 l9 push-m4 push-l3" id="mapdisplay"></div>
   <!-- map controls -->
-  <div class="col s12 m4 l3 pull-m8 pull-l9" id="mapcontrols">
+  <div class="col s12 m4 l3 pull-m8 pull-l9" id="mapcontrols" data-simplebar>
     <div class="container">
       <div>
         <form action="#" id="region-select">

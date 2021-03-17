@@ -84,10 +84,10 @@ def to_influx_json(
 
     if precision is None or precision.casefold() == 'rfc3339':
         influx_point['time'] = point[timekey].isoformat()
-    elif precision in ['h','m','s','ms','u','ns']:
+    elif precision in ['h','m','s','ms','u', 'us','ns']:
         influx_point['time'] = int(point[timekey])
     else:
-        raise TypeError('Cannot parse time data')
+        raise ValueError('Cannot parse time data')
 
     return influx_point
 
