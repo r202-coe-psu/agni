@@ -246,8 +246,7 @@ def get_clustered_hotspots():
 
     # if RoI filtering is set
     if roi_name is not None and roi_name != 'all':
-        s = pkg_res.read_text(regions, '{}.geojson'.format(roi_name))
-        roi = geojson.loads(s)
+        roi = Region.objects.get(name=roi_name).to_geojson()
         filtered = filtering.filter_shape(sat_points, roi)
         sat_points = filtered
     elif roi_name == 'all':

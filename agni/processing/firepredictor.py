@@ -201,8 +201,11 @@ def firegrid_geojson(firegrid, edges, ignore_trees=False):
             data = firegrid[y, x]
             if data == G_TREE and ignore_trees:
                 continue
+            elons = edges[0]
+            elats = edges[1]
+
             west, east = elons[x:x+2]
-            south, north = elats[x:x+2]
+            south, north = elats[y:y+2]
 
             rect = gjtool.rect(west, south, east, north)
             lonlat_rect = gjtool.reproject(rect, LONLAT_TF)
