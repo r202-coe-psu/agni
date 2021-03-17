@@ -210,8 +210,7 @@ def get_geojson_hotspots():
 
     # if RoI filtering is set
     if roi_name is not None and roi_name != 'all':
-        s = pkg_res.read_text(regions, '{}.geojson'.format(roi_name))
-        roi = geojson.loads(s)
+        roi = Region.objects.get(name=roi_name).to_geojson()
         filtered = filtering.filter_shape(sat_points, roi)
         sat_points = filtered
     elif roi_name == 'all':
@@ -328,10 +327,9 @@ def get_region_histogram(region, data_type=None):
 
     #print([start, end])
     # get region bbox for faster processing, no db yet
-    roi_str = pkg_res.read_text(regions, "{}.geojson".format(region))
-    roi_geojson = geojson.loads(roi_str)
+    roi_geojson = Region.objects.get(name=region).to_geojson()
     roi_shape = shapely.geometry.shape(
-        roi_geojson.features[0].geometry
+        roi_geojson.geometry
     ).buffer(0)
     roi_bbox = roi_shape.bounds
 
